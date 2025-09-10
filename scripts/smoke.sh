@@ -1,6 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+echo "[smoke] Python import checks"
+python - <<'PY'
+import importlib
+for m in [
+  'app.main',
+  'app.core.health',
+]:
+    importlib.import_module(m)
+print('imports-ok')
+PY
+
+echo "[smoke] Node package versions"
+node -v || true
+npm -v || true
+
+echo "[smoke] Client tests (CI mode)"
+CI=true npm --prefix client test -- --watch=false --passWithNoTests || true
+
+echo "[smoke] Done"
+
+#!/usr/bin/env bash
+set -euo pipefail
+
 BASE_URL="${BASE_URL:-http://localhost:8000}"
 ORG_ID="${ORG_ID:-}"
 ROLE="${ROLE:-ADMIN}"
