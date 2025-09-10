@@ -2,6 +2,7 @@ import os
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.middleware import TenantScopeMiddleware
 
 from app.routers import tasks as tasks_router
 from app.routers import cac as cac_router
@@ -25,6 +26,13 @@ from app.routers import tests_plans as plans_router
 from app.routers import tests_otdr as otdr_router
 from app.routers import tests_lspm as lspm_router
 from app.routers import work_queue as workq_router
+from app.routers import topology as topology_router
+from app.routers import maint_windows as maint_router
+from app.routers import configs as configs_router
+from app.routers import spares as spares_router
+from app.routers import firmware as firmware_router
+from app.routers import alerts as alerts_router
+from app.routers import auth_tokens as tokens_router
 from app.scheduler import init_jobs
 
 
@@ -42,6 +50,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(TenantScopeMiddleware)
 
 app.include_router(tasks_router.router)
 app.include_router(cac_router.router)
@@ -65,6 +74,13 @@ app.include_router(otdr_router.router)
 app.include_router(lspm_router.router)
 app.include_router(nms_router.router)
 app.include_router(workq_router.router)
+app.include_router(topology_router.router)
+app.include_router(maint_router.router)
+app.include_router(configs_router.router)
+app.include_router(spares_router.router)
+app.include_router(firmware_router.router)
+app.include_router(alerts_router.router)
+app.include_router(tokens_router.router)
 
 init_jobs()
 

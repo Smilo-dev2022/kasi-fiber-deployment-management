@@ -40,3 +40,14 @@ class Assignment(Base):
     ward = Column(String, nullable=True)
     step_type = Column(String, nullable=False)
 
+
+class ApiToken(Base):
+    __tablename__ = "api_tokens"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    tenant_id = Column(UUID(as_uuid=True), nullable=True)
+    org_id = Column(UUID(as_uuid=True))
+    name = Column(String, nullable=False)
+    token_hash = Column(String, nullable=False)
+    scope = Column(String, nullable=False)
+

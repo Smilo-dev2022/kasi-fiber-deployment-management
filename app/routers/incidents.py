@@ -3,9 +3,10 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, timezone, timedelta
-from app.core.deps import get_db, require_roles
+from app.core.deps import get_scoped_db, require_roles
 from app.models.incident import Incident
 from app.schemas.incident import IncidentCreate, IncidentUpdate, IncidentOut
+import uuid
 from app.models.orgs import Contract, Assignment
 
 
@@ -13,7 +14,7 @@ router = APIRouter(prefix="/incidents", tags=["incidents"])
 
 
 @router.get("", response_model=List[IncidentOut])
-def list_incidents(db: Session = Depends(get_db), status: Optional[str] = Query(None), device_id: Optional[str] = Query(None)):
+def list_incidents(db: Session = Depends(get_scoped_db), status: Optional[str] = Query(None), device_id: Optional[str] = Query(None)):
     q = db.query(Incident)
     if status:
         q = q.filter(Incident.status == status)
@@ -23,8 +24,8 @@ def list_incidents(db: Session = Depends(get_db), status: Optional[str] = Query(
 
 
 @router.post("", response_model=IncidentOut, dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
-def create_incident(payload: IncidentCreate, db: Session = Depends(get_db)):
-    inc = Incident(**payload.dict())
+def create_incident(payload: IncidentCreate, db: Session = Depends(get_scoped_db)):
+    inc = Incident(id=uuid.uuid4(), **payload.dict())
     # Auto-route assignment by PON/ward and scope
     scope = payload.category if payload.category in ("Power", "Optical", "Device", "Link") else "Technical"
     # Map categories to scope types
@@ -59,7 +60,7 @@ def create_incident(payload: IncidentCreate, db: Session = Depends(get_db)):
 
 
 @router.patch("/{incident_id}", response_model=IncidentOut, dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
-def update_incident(incident_id: str, payload: IncidentUpdate, db: Session = Depends(get_db)):
+def update_incident(incident_id: str, payload: IncidentUpdate, db: Session = Depends(get_scoped_db)):
     inc = db.get(Incident, UUID(incident_id))
     if not inc:
         raise HTTPException(404, "Not found")
@@ -77,7 +78,7 @@ class AssignIn(IncidentUpdate):
 
 
 @router.patch("/assign", response_model=IncidentOut, dependencies=[Depends(require_roles("ADMIN", "PM", "NOC"))])
-def assign_incident(id: str = Query(...), org_id: Optional[str] = Query(None), db: Session = Depends(get_db)):
+def assign_incident(id: str = Query(...), org_id: Optional[str] = Query(None), db: Session = Depends(get_scoped_db)):
     inc = db.get(Incident, UUID(id))
     if not inc:
         raise HTTPException(404, "Not found")
@@ -98,6 +99,33 @@ def assign_incident(id: str = Query(...), org_id: Optional[str] = Query(None), d
                 if not inc.opened_at:
                     inc.opened_at = datetime.now(timezone.utc)
                 inc.due_at = inc.opened_at + timedelta(minutes=mins)
+    db.commit()
+    db.refresh(inc)
+    return inc
+
+
+@router.post("/{incident_id}/ack", response_model=IncidentOut, dependencies=[Depends(require_roles("ADMIN", "PM", "NOC", "SITE"))])
+def ack_incident(incident_id: str, db: Session = Depends(get_scoped_db)):
+    inc = db.get(Incident, UUID(incident_id))
+    if not inc:
+        raise HTTPException(404, "Not found")
+    inc.status = "Acknowledged"
+    if not inc.ack_at:
+        inc.ack_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(inc)
+    return inc
+
+
+@router.post("/{incident_id}/resolve", response_model=IncidentOut, dependencies=[Depends(require_roles("ADMIN", "PM", "NOC", "SITE"))])
+def resolve_incident(incident_id: str, root_cause: str | None = None, fix_code: str | None = None, db: Session = Depends(get_scoped_db)):
+    inc = db.get(Incident, UUID(incident_id))
+    if not inc:
+        raise HTTPException(404, "Not found")
+    inc.status = "Resolved"
+    inc.root_cause = root_cause or inc.root_cause
+    inc.fix_code = fix_code or inc.fix_code
+    inc.resolved_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(inc)
     return inc

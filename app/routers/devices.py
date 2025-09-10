@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
-from app.core.deps import get_db, require_roles
+from app.core.deps import get_scoped_db, require_roles
 from app.models.device import Device
+import uuid
 from app.schemas.device import DeviceCreate, DeviceOut
 
 
@@ -11,7 +12,7 @@ router = APIRouter(prefix="/devices", tags=["devices"])
 
 
 @router.get("", response_model=List[DeviceOut])
-def list_devices(db: Session = Depends(get_db), role: Optional[str] = Query(None), pon_id: Optional[str] = Query(None)):
+def list_devices(db: Session = Depends(get_scoped_db), role: Optional[str] = Query(None), pon_id: Optional[str] = Query(None)):
     q = db.query(Device)
     if role:
         q = q.filter(Device.role == role)
@@ -21,8 +22,8 @@ def list_devices(db: Session = Depends(get_db), role: Optional[str] = Query(None
 
 
 @router.post("", response_model=DeviceOut, dependencies=[Depends(require_roles("ADMIN", "PM"))])
-def create_device(payload: DeviceCreate, db: Session = Depends(get_db)):
-    d = Device(**payload.dict())
+def create_device(payload: DeviceCreate, db: Session = Depends(get_scoped_db)):
+    d = Device(id=uuid.uuid4(), **payload.dict())
     db.add(d)
     db.commit()
     db.refresh(d)
@@ -30,7 +31,7 @@ def create_device(payload: DeviceCreate, db: Session = Depends(get_db)):
 
 
 @router.patch("/{device_id}", response_model=DeviceOut, dependencies=[Depends(require_roles("ADMIN", "PM"))])
-def update_device(device_id: str, payload: DeviceCreate, db: Session = Depends(get_db)):
+def update_device(device_id: str, payload: DeviceCreate, db: Session = Depends(get_scoped_db)):
     d = db.get(Device, UUID(device_id))
     if not d:
         raise HTTPException(404, "Not found")
