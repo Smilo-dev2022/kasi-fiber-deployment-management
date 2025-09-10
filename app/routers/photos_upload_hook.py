@@ -7,7 +7,7 @@ from uuid import UUID
 from app.core.deps import get_db, require_roles
 from app.models.photo import Photo
 from app.models.pon import PON
-from app.services.s3 import get_object_bytes
+from app.services.s3 import get_object_bytes, get_client as get_s3_client, settings as s3_settings
 from app.services.exif import parse_exif
 
 
@@ -35,6 +35,20 @@ def register(payload: RegisterIn, db: Session = Depends(get_db)):
     p: Photo | None = db.get(Photo, UUID(payload.photo_id))
     if not p:
         raise HTTPException(404, "Photo not found")
+
+    # Guards: size and type
+    s3 = get_s3_client()
+    head = s3.head_object(Bucket=s3_settings.S3_BUCKET, Key=payload.s3_key)
+    size_bytes = int(head.get("ContentLength", 0))
+    content_type = head.get("ContentType", "application/octet-stream")
+    from os import getenv
+
+    max_mb = int(getenv("PHOTO_MAX_MB", "3"))
+    allowed_types = [t.strip() for t in getenv("PHOTO_ALLOWED_TYPES", "image/jpeg,image/png").split(",") if t.strip()]
+    if size_bytes > max_mb * 1024 * 1024:
+        raise HTTPException(413, f"File too large: {size_bytes} bytes (max {max_mb} MB)")
+    if content_type not in allowed_types:
+        raise HTTPException(415, f"Unsupported content-type {content_type}")
 
     # Read from S3 and parse EXIF
     blob = get_object_bytes(payload.s3_key)

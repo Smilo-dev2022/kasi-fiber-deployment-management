@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from app.core.deps import get_db
+from app.core.deps import get_db, require_tenant
 from app.models.incident import Incident
 from app.models.device import Device
 
@@ -36,22 +36,22 @@ def _verify_hmac(request: Request, body: bytes):
         raise HTTPException(401, "Invalid signature")
 
 
-def _dedup_recent(db: Session, nms_ref: str, category: str, device_id):
+def _dedup_recent(db: Session, nms_ref: str, category: str, device_id, tenant_id):
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=30)
     existing = (
         db.query(Incident)
-        .filter(and_(Incident.nms_ref == nms_ref, Incident.category == category, Incident.opened_at >= cutoff))
+        .filter(and_(Incident.tenant_id == tenant_id, Incident.nms_ref == nms_ref, Incident.category == category, Incident.opened_at >= cutoff))
         .first()
     )
     return existing
 
 
 @router.post("/librenms")
-async def librenms(request: Request, db: Session = Depends(get_db)):
+async def librenms(request: Request, db: Session = Depends(get_db), x_tenant_id: str = Depends(require_tenant())):
+    from uuid import UUID
     _verify_source(request)
     raw = await request.body()
     _verify_hmac(request, raw)
-    data = await request.json()
     data = await request.json()
     host = data.get("hostname")
     sev = data.get("severity", "critical").lower()
@@ -66,13 +66,14 @@ async def librenms(request: Request, db: Session = Depends(get_db)):
     title = f"{host} {rule} {state}"
 
     nms_ref = f"librenms:{alert_id}"
-    existing = _dedup_recent(db, nms_ref, category, device.id if device else None)
+    existing = _dedup_recent(db, nms_ref, category, device.id if device else None, UUID(x_tenant_id))
     if existing:
         return {"ok": True, "incident_id": str(existing.id), "dedup": True}
 
     inc = Incident(
         device_id=device.id if device else None,
         pon_id=device.pon_id if device else None,
+        tenant_id=UUID(x_tenant_id),
         severity=severity_map.get(sev, "P3"),
         category=category,
         title=title,
@@ -89,7 +90,8 @@ async def librenms(request: Request, db: Session = Depends(get_db)):
 # Zabbix webhook
 # Expect { "host": "OLT-01", "severity": "Disaster|High|Average|Warning|Info", "event_id": "123", "problem": true, "name": "Link down", "message": "..." }
 @router.post("/zabbix")
-async def zabbix(request: Request, db: Session = Depends(get_db)):
+async def zabbix(request: Request, db: Session = Depends(get_db), x_tenant_id: str = Depends(require_tenant())):
+    from uuid import UUID
     _verify_source(request)
     raw = await request.body()
     _verify_hmac(request, raw)
@@ -105,12 +107,13 @@ async def zabbix(request: Request, db: Session = Depends(get_db)):
     severity_map = {"Disaster": "P1", "High": "P2", "Average": "P3", "Warning": "P3", "Info": "P4"}
     nms_ref = f"zabbix:{event_id}"
     if problem:
-        existing = _dedup_recent(db, nms_ref, "Device", device.id if device else None)
+        existing = _dedup_recent(db, nms_ref, "Device", device.id if device else None, UUID(x_tenant_id))
         if existing:
             return {"ok": True, "incident_id": str(existing.id), "dedup": True}
         inc = Incident(
             device_id=device.id if device else None,
             pon_id=device.pon_id if device else None,
+            tenant_id=UUID(x_tenant_id),
             severity=severity_map.get(sev, "P3"),
             category="Device",
             title=f"{host} {name}",
@@ -126,7 +129,7 @@ async def zabbix(request: Request, db: Session = Depends(get_db)):
         # Clear handler: mark existing as resolved
         inc = (
             db.query(Incident)
-            .filter(Incident.nms_ref == nms_ref)
+            .filter(and_(Incident.tenant_id == UUID(x_tenant_id), Incident.nms_ref == nms_ref))
             .filter(Incident.status != "Closed")
             .order_by(Incident.opened_at.desc())
             .first()

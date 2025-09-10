@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, timezone, timedelta
-from app.core.deps import get_db, require_roles
+from app.core.deps import get_db, require_roles, require_tenant
 from app.models.incident import Incident
 from app.schemas.incident import IncidentCreate, IncidentUpdate, IncidentOut
 from app.models.orgs import Contract, Assignment
@@ -13,8 +13,15 @@ router = APIRouter(prefix="/incidents", tags=["incidents"])
 
 
 @router.get("", response_model=List[IncidentOut])
-def list_incidents(db: Session = Depends(get_db), status: Optional[str] = Query(None), device_id: Optional[str] = Query(None)):
+def list_incidents(
+    db: Session = Depends(get_db),
+    status: Optional[str] = Query(None),
+    device_id: Optional[str] = Query(None),
+    x_tenant_id: str = Depends(require_tenant()),
+):
+    from uuid import UUID
     q = db.query(Incident)
+    q = q.filter(Incident.tenant_id == UUID(x_tenant_id))
     if status:
         q = q.filter(Incident.status == status)
     if device_id:
@@ -23,8 +30,10 @@ def list_incidents(db: Session = Depends(get_db), status: Optional[str] = Query(
 
 
 @router.post("", response_model=IncidentOut, dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
-def create_incident(payload: IncidentCreate, db: Session = Depends(get_db)):
+def create_incident(payload: IncidentCreate, db: Session = Depends(get_db), x_tenant_id: str = Depends(require_tenant())):
+    from uuid import UUID
     inc = Incident(**payload.dict())
+    inc.tenant_id = UUID(x_tenant_id)
     # Auto-route assignment by PON/ward and scope
     scope = payload.category if payload.category in ("Power", "Optical", "Device", "Link") else "Technical"
     # Map categories to scope types
@@ -59,10 +68,12 @@ def create_incident(payload: IncidentCreate, db: Session = Depends(get_db)):
 
 
 @router.patch("/{incident_id}", response_model=IncidentOut, dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
-def update_incident(incident_id: str, payload: IncidentUpdate, db: Session = Depends(get_db)):
+def update_incident(incident_id: str, payload: IncidentUpdate, db: Session = Depends(get_db), x_tenant_id: str = Depends(require_tenant())):
     inc = db.get(Incident, UUID(incident_id))
     if not inc:
         raise HTTPException(404, "Not found")
+    if str(inc.tenant_id) != x_tenant_id:
+        raise HTTPException(403, "Forbidden")
     for k, v in payload.dict(exclude_unset=True).items():
         setattr(inc, k, v)
     if inc.status == "Acknowledged" and not inc.ack_at:
@@ -77,10 +88,12 @@ class AssignIn(IncidentUpdate):
 
 
 @router.patch("/assign", response_model=IncidentOut, dependencies=[Depends(require_roles("ADMIN", "PM", "NOC"))])
-def assign_incident(id: str = Query(...), org_id: Optional[str] = Query(None), db: Session = Depends(get_db)):
+def assign_incident(id: str = Query(...), org_id: Optional[str] = Query(None), db: Session = Depends(get_db), x_tenant_id: str = Depends(require_tenant())):
     inc = db.get(Incident, UUID(id))
     if not inc:
         raise HTTPException(404, "Not found")
+    if str(inc.tenant_id) != x_tenant_id:
+        raise HTTPException(403, "Forbidden")
     if org_id:
         inc.assigned_org_id = UUID(org_id)
         # recompute due_at based on severity and contract

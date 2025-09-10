@@ -26,6 +26,8 @@ from app.routers import tests_otdr as otdr_router
 from app.routers import tests_lspm as lspm_router
 from app.routers import work_queue as workq_router
 from app.scheduler import init_jobs
+from app.routers import ops as ops_router
+from app.middleware.rate_limit import WebhookRateLimitMiddleware
 
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -42,6 +44,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(WebhookRateLimitMiddleware)
 
 app.include_router(tasks_router.router)
 app.include_router(cac_router.router)
@@ -65,6 +68,7 @@ app.include_router(otdr_router.router)
 app.include_router(lspm_router.router)
 app.include_router(nms_router.router)
 app.include_router(workq_router.router)
+app.include_router(ops_router.router)
 
 init_jobs()
 
