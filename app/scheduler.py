@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import text
 
 from app.core.deps import SessionLocal
+from app.core.settings import get_settings
 
 
 sched = BackgroundScheduler(timezone="Africa/Johannesburg")
