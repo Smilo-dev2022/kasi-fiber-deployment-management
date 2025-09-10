@@ -106,3 +106,6 @@ TaskSchema.pre('save', function(next) {
 });
 
 module.exports = mongoose.model('Task', TaskSchema);
+// Indexes for speed
+TaskSchema.index({ pon: 1 });
+TaskSchema.index({ status: 1 });

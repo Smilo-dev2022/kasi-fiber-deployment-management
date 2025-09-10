@@ -2,6 +2,8 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
+const AWS = require('aws-sdk');
 const Task = require('../models/Task');
 const { auth } = require('../middleware/auth');
 
@@ -18,12 +20,12 @@ const storage = multer.diskStorage({
   }
 });
 
+const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'application/pdf']);
 const fileFilter = (req, file, cb) => {
-  // Accept images only
-  if (file.mimetype.startsWith('image/')) {
+  if (ALLOWED_TYPES.has(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Only image files are allowed'), false);
+    cb(new Error('Unsupported content type'), false);
   }
 };
 
@@ -31,8 +33,18 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 10 * 1024 * 1024
   }
+});
+
+// S3 client (MinIO compatible)
+const s3 = new AWS.S3({
+  endpoint: process.env.S3_ENDPOINT,
+  accessKeyId: process.env.S3_ACCESS_KEY,
+  secretAccessKey: process.env.S3_SECRET_KEY,
+  s3ForcePathStyle: true,
+  signatureVersion: 'v4',
+  region: process.env.S3_REGION || 'us-east-1'
 });
 
 // @route   POST api/photos/upload/:taskId
@@ -104,3 +116,29 @@ router.get('/task/:taskId', auth, async (req, res) => {
 });
 
 module.exports = router;
+
+// Presign upload URL
+router.post('/sign', auth, async (req, res) => {
+  try {
+    const { key, content_type } = req.body || {};
+    const contentType = content_type || req.body?.contentType || req.body?.content_type;
+    if (!key || !contentType) {
+      return res.status(400).json({ message: 'key and content_type are required' });
+    }
+    if (!ALLOWED_TYPES.has(contentType)) {
+      return res.status(400).json({ message: 'Unsupported content type' });
+    }
+
+    const params = {
+      Bucket: process.env.S3_BUCKET,
+      Key: key,
+      Expires: 300,
+      ContentType: contentType
+    };
+    const url = await s3.getSignedUrlPromise('putObject', params);
+    res.json({ url, key, bucket: process.env.S3_BUCKET });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to sign URL' });
+  }
+});

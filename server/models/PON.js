@@ -101,3 +101,7 @@ PONSchema.methods.updateProgress = async function() {
 };
 
 module.exports = mongoose.model('PON', PONSchema);
+// Indexes for speed
+PONSchema.index({ status: 1 });
+PONSchema.index({ projectManager: 1 });
+PONSchema.index({ siteManager: 1 });
