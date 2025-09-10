@@ -16,6 +16,12 @@ from app.routers import devices as devices_router
 from app.routers import incidents as incidents_router
 from app.routers import optical as optical_router
 from app.routers import nms_webhook as nms_router
+from app.routers import closures as closures_router
+from app.routers import trays as trays_router
+from app.routers import splices as splices_router
+from app.routers import tests_plans as plans_router
+from app.routers import tests_otdr as otdr_router
+from app.routers import tests_lspm as lspm_router
 from app.scheduler import init_jobs
 
 
@@ -47,6 +53,12 @@ app.include_router(devices_router.router)
 app.include_router(incidents_router.router)
 app.include_router(optical_router.router)
 app.include_router(nms_router.router)
+app.include_router(closures_router.router)
+app.include_router(trays_router.router)
+app.include_router(splices_router.router)
+app.include_router(plans_router.router)
+app.include_router(otdr_router.router)
+app.include_router(lspm_router.router)
 
 init_jobs()
 
