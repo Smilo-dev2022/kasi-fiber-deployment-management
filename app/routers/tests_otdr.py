@@ -4,6 +4,7 @@ from sqlalchemy import text
 from uuid import uuid4
 from pydantic import BaseModel, Field
 from app.core.deps import get_db, require_roles
+from typing import List, Optional
 
 
 router = APIRouter(prefix="/tests/otdr", tags=["tests"])
@@ -59,4 +60,36 @@ def list_otdr(plan_id: str, db: Session = Depends(get_db)):
         .all()
     )
     return [dict(r) for r in rows]
+
+
+class OTDRImportEvent(BaseModel):
+    distance_m: float = Field(ge=0)
+    event_type: Optional[str] = None
+    loss_db: Optional[float] = None
+
+
+class OTDRImportIn(BaseModel):
+    otdr_result_id: str
+    events: List[OTDRImportEvent]
+
+
+@router.post("/import", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
+def import_otdr(payload: OTDRImportIn, db: Session = Depends(get_db)):
+    # Insert events
+    for ev in payload.events:
+        db.execute(
+            text(
+                """
+            insert into otdr_events (id, otdr_result_id, distance_m, event_type, loss_db)
+            values (gen_random_uuid(), :rid, :dist, :type, :loss)
+            """
+            ),
+            {"rid": payload.otdr_result_id, "dist": ev.distance_m, "type": ev.event_type, "loss": ev.loss_db},
+        )
+
+    # Snap to nearest trench segment polyline by distance if possible
+    # Approximated by selecting nearest closure/trench along same PON using distance_m heuristics (placeholder)
+    # Detailed GIS snapping would be implemented with PostGIS; here we record events only.
+    db.commit()
+    return {"ok": True, "count": len(payload.events)}
 

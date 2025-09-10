@@ -20,6 +20,16 @@ def job_sla_scan():
             ),
             {"now": now},
         )
+        # Incident SLA breach
+        db.execute(
+            text(
+                """
+            update incidents set status = 'Acknowledged'
+            where status = 'Open' and ack_at is null and due_at is not null and due_at < :now
+        """
+            ),
+            {"now": now},
+        )
         db.commit()
 
 
