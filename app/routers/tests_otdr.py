@@ -4,6 +4,7 @@ from sqlalchemy import text
 from uuid import uuid4
 from pydantic import BaseModel, Field
 from app.core.deps import get_db, require_roles
+from app.core.limiter import env_org_limiter
 from typing import List
 from math import isfinite
 from app.models.topology_ext import CableRegister
@@ -26,7 +27,7 @@ class OTDRIn(BaseModel):
     events_distance_m: List[float] | None = None
 
 
-@router.post("", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
+@router.post("", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE")), Depends(env_org_limiter("HEAVY_ORG", 180, 60))])
 def add_otdr(payload: OTDRIn, db: Session = Depends(get_db)):
     oid = str(uuid4())
     db.execute(
@@ -91,7 +92,7 @@ def add_otdr(payload: OTDRIn, db: Session = Depends(get_db)):
     return {"ok": True, "id": oid}
 
 
-@router.post("/import", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
+@router.post("/import", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE")), Depends(env_org_limiter("HEAVY_ORG", 180, 60))])
 def import_otdr(payload: OTDRIn, db: Session = Depends(get_db)):
     return add_otdr(payload, db)
 

@@ -37,3 +37,11 @@
 ## Helpful commands
 - Generate hex secret: `openssl rand -hex 32`
 - Validate HMAC locally: see `scripts/test_webhooks.sh`
+
+## Rate limit tuning
+
+- Per-IP webhook limits (FastAPI & Express):
+  - `WEBHOOK_IP_LIMIT`, `WEBHOOK_IP_WINDOW`
+- Per-org heavy writes (FastAPI):
+  - `HEAVY_ORG_LIMIT`, `HEAVY_ORG_WINDOW`
+  - `HEAVY_ORG_BYPASS_ROLES` (default `NOC`)

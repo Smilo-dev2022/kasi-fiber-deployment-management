@@ -5,9 +5,23 @@ const PON = require('../models/PON');
 
 const router = express.Router();
 
-// No auth: called by NMS in network. Secure via shared secret header
+// No auth: called by NMS in network. Secure via shared secret header and per-IP rate limit
 router.post('/hook', async (req, res) => {
   try {
+    // Simple per-IP sliding window limiter using memory map (OK for single instance)
+    const now = Date.now();
+    const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').toString().split(',')[0].trim();
+    const limit = Number(process.env.WEBHOOK_IP_LIMIT || 60);
+    const windowSec = Number(process.env.WEBHOOK_IP_WINDOW || 60);
+    const key = `ip:${ip}`;
+    if (!global.__ipBuckets) global.__ipBuckets = new Map();
+    const arr = (global.__ipBuckets.get(key) || []).filter(ts => ts > now - windowSec * 1000);
+    if (arr.length >= limit) {
+      return res.status(429).json({ message: 'Rate limit exceeded' });
+    }
+    arr.push(now);
+    global.__ipBuckets.set(key, arr);
+
     const secret = process.env.NMS_WEBHOOK_SECRET || 'change-me';
     const provided = req.header('x-webhook-secret');
     if (!provided || provided !== secret) {

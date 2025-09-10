@@ -6,6 +6,7 @@ from datetime import datetime, timezone, timedelta
 from uuid import UUID
 
 from app.core.deps import get_db, require_roles
+from app.core.limiter import env_org_limiter
 from app.models.photo import Photo
 from app.models.pon import PON
 from app.services.s3 import get_object_bytes, head_object, settings
@@ -31,7 +32,7 @@ def dist_m(a_lat, a_lng, b_lat, b_lng):
     return 2 * R * asin(sqrt(h))
 
 
-@router.post("/register", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "SMME"))])
+@router.post("/register", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "SMME")), Depends(env_org_limiter("HEAVY_ORG", 240, 60))])
 def register(payload: RegisterIn, db: Session = Depends(get_db), request: Request = None):
     p: Photo | None = db.get(Photo, UUID(payload.photo_id))
     if not p:

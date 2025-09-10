@@ -6,6 +6,7 @@ import uuid
 import qrcode
 import io
 from app.core.deps import get_db, require_roles
+from app.core.limiter import env_org_limiter
 from app.models import stock as mstock
 from app.models.pon import PON
 from sqlalchemy import select
@@ -30,7 +31,7 @@ class AssetScanIn(BaseModel):
     user_id: Optional[str] = None
 
 
-@router.post("", dependencies=[Depends(require_roles("ADMIN", "PM"))])
+@router.post("", dependencies=[Depends(require_roles("ADMIN", "PM")), Depends(env_org_limiter("HEAVY_ORG", 300, 60))])
 def create_batch(payload: AssetBatchIn, db: Session = Depends(get_db)):
     ids = []
     for _ in range(payload.count):
@@ -53,7 +54,7 @@ def qr_png(code: str):
     return Response(content=buf.getvalue(), media_type="image/png")
 
 
-@router.post("/scan", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
+@router.post("/scan", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE")), Depends(env_org_limiter("HEAVY_ORG", 600, 60))])
 def scan(payload: AssetScanIn, db: Session = Depends(get_db)):
     from app.models import stock as stock_models
 

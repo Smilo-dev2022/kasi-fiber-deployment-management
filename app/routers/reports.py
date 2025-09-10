@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from datetime import date, timedelta
 from uuid import uuid4
 from app.core.deps import get_db, require_roles
+from app.core.limiter import env_org_limiter
 from app.models.pon import PON
 from app.models.task import Task
 from app.models.certificate_acceptance import CertificateAcceptance
@@ -19,7 +20,7 @@ class WeeklyIn(BaseModel):
     end: date | None = None
 
 
-@router.post("/weekly", dependencies=[Depends(require_roles("ADMIN", "PM"))])
+@router.post("/weekly", dependencies=[Depends(require_roles("ADMIN", "PM")), Depends(env_org_limiter("HEAVY_ORG", 60, 60))])
 def weekly(payload: WeeklyIn, db: Session = Depends(get_db)):
     start = payload.start or (date.today() - timedelta(days=7))
     end = payload.end or date.today()

@@ -5,6 +5,7 @@ from typing import Optional, List
 from uuid import UUID, uuid4
 from pydantic import BaseModel, Field
 from app.core.deps import get_db, require_roles
+from app.core.limiter import env_org_limiter
 
 
 router = APIRouter(prefix="/closures", tags=["closures"])
@@ -20,7 +21,7 @@ class ClosureIn(BaseModel):
     status: str = "Planned"
 
 
-@router.post("", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
+@router.post("", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE")), Depends(env_org_limiter("HEAVY_ORG", 240, 60))])
 def create_closure(payload: ClosureIn, db: Session = Depends(get_db)):
     sql = text(
         """
@@ -76,7 +77,7 @@ class ClosurePatch(BaseModel):
     status: Optional[str] = None
 
 
-@router.patch("/{closure_id}", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
+@router.patch("/{closure_id}", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE")), Depends(env_org_limiter("HEAVY_ORG", 480, 60))])
 def update_closure(closure_id: str, payload: ClosurePatch, db: Session = Depends(get_db)):
     sets: List[str] = []
     params: dict = {"id": closure_id}
