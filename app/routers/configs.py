@@ -28,7 +28,7 @@ def _verify_hmac(request: Request, body: bytes):
         raise HTTPException(401, "Invalid signature")
 
 
-@router.post("/oxidized", dependencies=[Depends(rate_limit("webhook:oxidized", 60, 60))])
+@router.post("/oxidized")
 async def oxidized_webhook(request: Request, db: Session = Depends(get_db)):
     raw = await request.body()
     _verify_hmac(request, raw)

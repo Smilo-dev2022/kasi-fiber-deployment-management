@@ -36,6 +36,10 @@ from app.core.limiter import limiter, key_by_ip
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 
+# Rate limit configuration (env-driven)
+WEBHOOK_IP_LIMIT_PER_MIN = int(os.getenv("WEBHOOK_IP_LIMIT_PER_MIN", "60"))
+WEBHOOK_IP_LIMIT_WINDOW_SEC = int(os.getenv("WEBHOOK_IP_LIMIT_WINDOW_SEC", "60"))
+
 app = FastAPI()
 
 # CORS allowlist
@@ -71,12 +75,15 @@ app.include_router(otdr_router.router)
 app.include_router(lspm_router.router)
 app.include_router(
     nms_router.router,
-    dependencies=[limiter(limit=60, window_sec=60, key_fn=key_by_ip)],
+    dependencies=[limiter(limit=WEBHOOK_IP_LIMIT_PER_MIN, window_sec=WEBHOOK_IP_LIMIT_WINDOW_SEC, key_fn=key_by_ip)],
 )
 app.include_router(workq_router.router)
 app.include_router(topo_router.router)
 app.include_router(maint_router.router)
-app.include_router(configs_router.router)
+app.include_router(
+    configs_router.router,
+    dependencies=[limiter(limit=WEBHOOK_IP_LIMIT_PER_MIN, window_sec=WEBHOOK_IP_LIMIT_WINDOW_SEC, key_fn=key_by_ip)],
+)
 app.include_router(spares_router.router)
 # register health endpoints
 app.include_router(health_router)
