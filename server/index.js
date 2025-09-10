@@ -4,6 +4,7 @@ const path = require('path');
 require('dotenv').config();
 
 const connectDB = require('./config/database');
+const { startSlaMonitor } = require('./jobs/slaMonitor');
 
 const app = express();
 
@@ -42,3 +43,8 @@ if (process.env.NODE_ENV === 'production') {
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
+// Start background jobs
+if (process.env.DISABLE_SLA_MONITOR !== 'true') {
+  const intervalMs = Number(process.env.SLA_MONITOR_INTERVAL_MS || 60000);
+  startSlaMonitor(intervalMs);
+}
