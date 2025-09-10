@@ -127,8 +127,14 @@ router.put('/:id/status', auth, async (req, res) => {
     }
 
     // Check if evidence is required for completion
-    if (status === 'completed' && task.evidenceRequired && task.evidencePhotos.length === 0) {
-      return res.status(400).json({ message: 'Evidence photos required before marking as completed' });
+    if (status === 'completed' && task.evidenceRequired) {
+      if (task.evidencePhotos.length === 0) {
+        return res.status(400).json({ message: 'Evidence photos required before marking as completed' });
+      }
+      const last = task.evidencePhotos[task.evidencePhotos.length - 1];
+      if (!(typeof last.gpsLat === 'number' && typeof last.gpsLng === 'number')) {
+        return res.status(400).json({ message: 'GPS coordinates required on photo evidence' });
+      }
     }
 
     task.status = status;
@@ -185,8 +191,14 @@ router.patch('/:id', auth, async (req, res) => {
     // Update status and timestamps
     if (status) {
       // Guard completion requiring evidence
-      if (status === 'completed' && task.evidenceRequired && task.evidencePhotos.length === 0) {
-        return res.status(400).json({ message: 'Evidence photos required before marking as completed' });
+      if (status === 'completed' && task.evidenceRequired) {
+        if (task.evidencePhotos.length === 0) {
+          return res.status(400).json({ message: 'Evidence photos required before marking as completed' });
+        }
+        const last = task.evidencePhotos[task.evidencePhotos.length - 1];
+        if (!(typeof last.gpsLat === 'number' && typeof last.gpsLng === 'number')) {
+          return res.status(400).json({ message: 'GPS coordinates required on photo evidence' });
+        }
       }
       task.status = status;
     }

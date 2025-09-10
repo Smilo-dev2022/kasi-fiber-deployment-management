@@ -20,6 +20,7 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [ops, setOps] = useState(null);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -31,8 +32,12 @@ const Dashboard = () => {
           },
         };
 
-        const res = await axios.get('/api/reports/dashboard', config);
+        const [res, opsRes] = await Promise.all([
+          axios.get('/api/reports/dashboard', config),
+          axios.get('/api/reports/ops', config)
+        ]);
         setStats(res.data);
+        setOps(opsRes.data);
         setLoading(false);
       } catch (err) {
         setError('Failed to load dashboard data');
@@ -118,6 +123,23 @@ const Dashboard = () => {
             color="error"
           />
         </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="MTTR (hrs)"
+            value={ops ? ops.mttrHours : 0}
+            icon={<PendingIcon />}
+            color="secondary"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Avg Uptime (30d)"
+            value={ops && ops.uptimeByWard && ops.uptimeByWard.length > 0 ?
+              (ops.uptimeByWard.reduce((a, b) => a + (b.uptime || 0), 0) / ops.uptimeByWard.length).toFixed(1) + '%' : '—'}
+            icon={<CompletedIcon />}
+            color="success"
+          />
+        </Grid>
       </Grid>
 
       <Grid container spacing={3}>
@@ -176,6 +198,28 @@ const Dashboard = () => {
                     {stats?.tasks?.overdue || 0}
                   </Typography>
                 </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Uptime by Ward (30d)
+              </Typography>
+              <Box sx={{ mt: 2, maxHeight: 240, overflowY: 'auto' }}>
+                {ops && ops.uptimeByWard && ops.uptimeByWard.length > 0 ? (
+                  ops.uptimeByWard.map((w) => (
+                    <Box key={w.ward} display="flex" justifyContent="space-between" mb={1}>
+                      <Typography variant="body2">{w.ward}</Typography>
+                      <Typography variant="body2" color="textSecondary">{w.uptime.toFixed(2)}%</Typography>
+                    </Box>
+                  ))
+                ) : (
+                  <Typography variant="body2" color="textSecondary">No data</Typography>
+                )}
               </Box>
             </CardContent>
           </Card>
