@@ -1,7 +1,7 @@
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 SQLAlchemy==2.0.36
-psycopg2-binary==2.9.9
+psycopg[binary]==3.2.3
 alembic==1.14.0
 pydantic==1.10.18
 qrcode==7.4.2
