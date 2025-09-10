@@ -6,6 +6,7 @@ from typing import Optional, List
 from app.core.deps import get_db, require_roles
 from app.models.task import Task
 from app.models.orgs import Assignment
+from sqlalchemy import text
 
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -41,7 +42,28 @@ def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(get_d
         task.sla_minutes = mins
         if task.started_at:
             task.sla_due_at = task.started_at + timedelta(minutes=mins)
-    if "status" in data and data["status"] == "Done" and task.sla_due_at and task.completed_at:
+    if "status" in data and data["status"] == "Done":
+        # Guard: require required tags + EXIF + geofence when marking Done
+        req = db.execute(
+            text("select name from photo_tags where required_for_step=:st"),
+            {"st": task.step},
+        ).scalars().all()
+        if req:
+            ok = db.execute(
+                text(
+                    """
+          select count(1) from photos ph
+          join photo_tag_links l on l.photo_id=ph.id
+          join photo_tags t on t.id=l.tag_id
+          where ph.pon_id=:p and t.name = any(:req) and ph.exif_ok=true and ph.within_geofence=true
+        """
+                ),
+                {"p": str(task.pon_id), "req": req},
+            ).scalar_one()
+            if ok < len(req):
+                raise HTTPException(status_code=400, detail="Required photo tags missing or invalid")
+        if task.sla_due_at and task.completed_at:
+            task.breached = task.completed_at > task.sla_due_at
         task.breached = task.completed_at > task.sla_due_at
     db.commit()
     return {"ok": True, "breached": task.breached, "sla_due_at": task.sla_due_at}

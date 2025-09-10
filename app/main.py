@@ -29,6 +29,11 @@ from app.routers import topology as topo_router
 from app.routers import maintenance as maint_router
 from app.routers import configs as configs_router
 from app.routers import spares as spares_router
+from app.routers import stringing_runs as stringing_router
+from app.routers import smmes as smmes_router
+from app.routers import stock as stock_router
+from app.routers import invoices as invoices_router
+from app.routers import photo_tags as photo_tags_router
 from app.scheduler import init_jobs
 
 
@@ -73,6 +78,11 @@ app.include_router(topo_router.router)
 app.include_router(maint_router.router)
 app.include_router(configs_router.router)
 app.include_router(spares_router.router)
+app.include_router(stringing_router.router)
+app.include_router(smmes_router.router)
+app.include_router(stock_router.router)
+app.include_router(invoices_router.router)
+app.include_router(photo_tags_router.router)
 
 init_jobs()
 
