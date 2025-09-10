@@ -33,6 +33,7 @@ from app.routers import map as map_router
 from app.routers import imports as imports_router
 from app.routers import users_location as users_loc_router
 from app.routers import photos_register_geofence as photos_geo_router
+from app.routers import geocoding as geocoding_router
 from app.scheduler import init_jobs
 from app.core.health import router as health_router
 from app.core.limiter import env_ip_limiter
@@ -88,6 +89,7 @@ app.include_router(map_router.router)
 app.include_router(imports_router.router)
 app.include_router(users_loc_router.router)
 app.include_router(photos_geo_router.router)
+app.include_router(geocoding_router.router)
 
 init_jobs()
 
