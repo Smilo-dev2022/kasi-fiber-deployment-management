@@ -97,6 +97,34 @@ npm start
 
 The client proxies API calls to `http://localhost:5000` (Express). If you consume the FastAPI directly, point requests to `http://localhost:8000`.
 
+### Environment Variables
+Ensure production environment variables are set:
+- `CORS_ALLOW_ORIGINS`: Comma-separated allowlist (e.g. `https://app.example.com`)
+- `NMS_ALLOW_IPS`: Comma-separated source IPs allowed for webhooks
+- `NMS_HMAC_SECRET`: Shared secret used to verify HMAC (`X-Signature`)
+- `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`
+### Staging/Prod Env Files
+Create `.env.staging` and `.env.prod` per ops rollout.
+
+### Alembic
+Run migrations using:
+
+```bash
+export $(cat .env.staging | xargs) && alembic upgrade head
+```
+
+### MinIO Setup
+Bring up infra and configure bucket/lifecycle:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d db minio
+export $(cat .env.staging | xargs) && python scripts/setup_minio.py
+```
+
+- `NODE_ENV=production`
+- `MONGODB_URI` (production database)
+- `JWT_SECRET` (strong secret key)
+
 ## Configuration & Environment
 
 Key environment variables (see also `docs/secrets.md`):

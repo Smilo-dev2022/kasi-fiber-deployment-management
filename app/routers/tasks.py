@@ -66,9 +66,14 @@ def work_queue(db: Session = Depends(get_db), x_org_id: Optional[str] = Header(d
         return []
     # Join by PON assignment if any
     # Simplified: tasks where there exists assignment matching pon_id and step
+    from uuid import UUID
+    try:
+        org_uuid = UUID(str(x_org_id))
+    except Exception:
+        raise HTTPException(400, "Invalid X-Org-Id")
     assigned_steps = (
         db.query(Assignment.step_type)
-        .filter(Assignment.org_id == x_org_id)
+        .filter(Assignment.org_id == org_uuid)
         .distinct()
         .all()
     )

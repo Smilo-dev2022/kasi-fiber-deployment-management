@@ -91,7 +91,9 @@ async def librenms(request: Request, db: Session = Depends(get_db)):
     _verify_source(request)
     raw = await request.body()
     _verify_hmac(request, raw)
-    data = await request.json()
+    ctype = request.headers.get("Content-Type", "application/json")
+    if "json" not in ctype:
+        raise HTTPException(415, "Unsupported Media Type")
     data = await request.json()
     host = data.get("hostname")
     sev = data.get("severity", "critical").lower()
@@ -135,6 +137,9 @@ async def zabbix(request: Request, db: Session = Depends(get_db)):
     _verify_source(request)
     raw = await request.body()
     _verify_hmac(request, raw)
+    ctype = request.headers.get("Content-Type", "application/json")
+    if "json" not in ctype:
+        raise HTTPException(415, "Unsupported Media Type")
     data = await request.json()
     host = data.get("host")
     sev = str(data.get("severity", "Average"))
