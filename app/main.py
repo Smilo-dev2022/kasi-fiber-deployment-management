@@ -1,4 +1,7 @@
+import os
+import logging
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import tasks as tasks_router
 from app.routers import cac as cac_router
@@ -16,7 +19,20 @@ from app.routers import nms_webhook as nms_router
 from app.scheduler import init_jobs
 
 
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+
 app = FastAPI()
+
+# CORS allowlist
+origins_env = os.getenv("CORS_ALLOW_ORIGINS", "*")
+allow_origins = [o.strip() for o in origins_env.split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allow_origins if allow_origins != ["*"] else ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(tasks_router.router)
 app.include_router(cac_router.router)
@@ -33,4 +49,15 @@ app.include_router(optical_router.router)
 app.include_router(nms_router.router)
 
 init_jobs()
+
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
+
+
+@app.get("/readyz")
+def readyz():
+    # If needed, extend with DB ping
+    return {"ready": True}
 
