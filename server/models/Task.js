@@ -78,7 +78,39 @@ const TaskSchema = new mongoose.Schema({
   dependencies: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Task'
-  }]
+  }],
+  // SLA fields
+  slaMinutes: {
+    type: Number,
+    min: 0,
+    default: 0
+  },
+  slaDueAt: {
+    type: Date
+  },
+  breached: {
+    type: Boolean,
+    default: false
+  },
+  breachCounted: {
+    type: Boolean,
+    default: false
+  },
+  breachAlertSent: {
+    type: Boolean,
+    default: false
+  },
+  // Optional production metrics used by reports/pay
+  polesCount: {
+    type: Number,
+    min: 0,
+    default: 0
+  },
+  metersStrung: {
+    type: Number,
+    min: 0,
+    default: 0
+  }
 }, {
   timestamps: true
 });
@@ -106,3 +138,7 @@ TaskSchema.pre('save', function(next) {
 });
 
 module.exports = mongoose.model('Task', TaskSchema);
+
+// Indexes for SLA queries
+TaskSchema.index({ slaDueAt: 1 });
+TaskSchema.index({ breached: 1 });
