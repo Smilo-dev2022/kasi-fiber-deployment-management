@@ -6,6 +6,7 @@ export default function SAMap() {
   const mapRef = useRef(null);
   useEffect(() => {
     const styleUrl = process.env.REACT_APP_TILE_STYLE_URL || "https://api.maptiler.com/maps/streets/style.json?key=" + (process.env.REACT_APP_MAPTILER_KEY || "");
+    const apiBase = process.env.REACT_APP_MAP_API_BASE || "";
     const map = new maplibregl.Map({
       container: mapRef.current,
       style: styleUrl,
@@ -14,7 +15,7 @@ export default function SAMap() {
     });
 
     map.on("load", () => {
-      fetch("/map/wards")
+      fetch(`${apiBase}/map/wards`)
         .then((r) => r.json())
         .then((fc) => {
           map.addSource("wards", { type: "geojson", data: fc });
@@ -22,7 +23,7 @@ export default function SAMap() {
           map.addLayer({ id: "wards-outline", type: "line", source: "wards", paint: { "line-color": "#0A6EBD", "line-width": 1 } });
         });
 
-      fetch("/map/incidents?since_minutes=1440")
+      fetch(`${apiBase}/map/incidents?since_minutes=1440`)
         .then((r) => r.json())
         .then((fc) => {
           map.addSource("incidents", { type: "geojson", data: fc, cluster: true, clusterRadius: 40 });

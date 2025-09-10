@@ -20,6 +20,7 @@ import {
   Cable as CableIcon,
   Task as TaskIcon,
   Assessment as ReportsIcon,
+  Map as MapIcon,
   AccountCircle,
   Menu as MenuIcon,
 } from '@mui/icons-material';
@@ -54,6 +55,7 @@ const Layout = ({ children }) => {
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+    { text: 'Map', icon: <MapIcon />, path: '/map' },
     { text: 'PONs', icon: <CableIcon />, path: '/pons' },
     { text: 'Tasks', icon: <TaskIcon />, path: '/tasks' },
     { text: 'Reports', icon: <ReportsIcon />, path: '/reports' },

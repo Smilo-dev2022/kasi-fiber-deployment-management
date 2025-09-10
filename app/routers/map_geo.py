@@ -76,7 +76,7 @@ def pon_assets(pon_id: str, db: Session = Depends(get_db)):
             db.execute(
                 text(
                     """
-      SELECT id, code, geom_geojson FROM closures WHERE pon_id=:p AND geom_geojson IS NOT NULL
+      SELECT id, code, geom_geojson FROM splice_closures WHERE pon_id=:p AND geom_geojson IS NOT NULL
     """
                 ),
                 {"p": pon_id},
