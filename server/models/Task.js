@@ -83,6 +83,11 @@ const TaskSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Indexes
+TaskSchema.index({ pon: 1 });
+TaskSchema.index({ status: 1 });
+TaskSchema.index({ assignedTo: 1 });
+
 // Check if task can be started (dependencies completed)
 TaskSchema.methods.canStart = async function() {
   if (this.dependencies.length === 0) return true;

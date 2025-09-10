@@ -76,6 +76,11 @@ const PONSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Indexes for query performance
+PONSchema.index({ status: 1 });
+PONSchema.index({ projectManager: 1 });
+PONSchema.index({ siteManager: 1 });
+
 // Auto-compute progress based on related tasks
 PONSchema.methods.updateProgress = async function() {
   const Task = mongoose.model('Task');

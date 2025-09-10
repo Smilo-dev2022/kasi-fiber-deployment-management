@@ -1,7 +1,11 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
+const exifr = require('exifr');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const Task = require('../models/Task');
 const { auth } = require('../middleware/auth');
 
@@ -18,20 +22,19 @@ const storage = multer.diskStorage({
   }
 });
 
+const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf']);
 const fileFilter = (req, file, cb) => {
-  // Accept images only
-  if (file.mimetype.startsWith('image/')) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only image files are allowed'), false);
+  if (ALLOWED.has(file.mimetype)) {
+    return cb(null, true);
   }
+  cb(new Error('Unsupported content type'), false);
 };
 
 const upload = multer({ 
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 10 * 1024 * 1024 // 10MB limit
   }
 });
 
@@ -55,6 +58,22 @@ router.post('/upload/:taskId', auth, upload.single('photo'), async (req, res) =>
 
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
+    }
+    // Validate EXIF (images only)
+    if (req.file.mimetype.startsWith('image/')) {
+      const uploadPath = path.join(req.file.destination, req.file.filename);
+      try {
+        const exif = await exifr.parse(uploadPath, { gps: true });
+        const hasTime = Boolean(exif?.DateTimeOriginal || exif?.CreateDate);
+        const hasGps = typeof exif?.latitude === 'number' && typeof exif?.longitude === 'number';
+        if (!hasTime || !hasGps) {
+          fs.unlink(uploadPath, () => {});
+          return res.status(400).json({ message: 'Image must contain EXIF timestamp and GPS' });
+        }
+      } catch (err) {
+        fs.unlink(path.join(req.file.destination, req.file.filename), () => {});
+        return res.status(400).json({ message: 'Invalid image metadata' });
+      }
     }
 
     // Add photo to task
@@ -104,3 +123,39 @@ router.get('/task/:taskId', auth, async (req, res) => {
 });
 
 module.exports = router;
+
+// S3/MinIO presign endpoint
+router.post('/sign', auth, async (req, res) => {
+  try {
+    const { key, contentType } = req.body || {};
+    if (!key || !contentType) {
+      return res.status(400).json({ message: 'key and contentType are required' });
+    }
+
+    if (!ALLOWED.has(contentType)) {
+      return res.status(400).json({ message: 'Unsupported content type' });
+    }
+
+    const s3 = new S3Client({
+      region: process.env.S3_REGION || 'us-east-1',
+      endpoint: process.env.S3_ENDPOINT,
+      forcePathStyle: true,
+      credentials: {
+        accessKeyId: process.env.S3_ACCESS_KEY,
+        secretAccessKey: process.env.S3_SECRET_KEY
+      }
+    });
+
+    const command = new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: key,
+      ContentType: contentType
+    });
+
+    const url = await getSignedUrl(s3, command, { expiresIn: 60 });
+    res.json({ url, key, contentType });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: 'Failed to sign upload' });
+  }
+});

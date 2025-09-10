@@ -45,6 +45,11 @@ const UserSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Indexes
+UserSchema.index({ email: 1 }, { unique: true });
+UserSchema.index({ role: 1 });
+UserSchema.index({ isActive: 1 });
+
 // Hash password before saving
 UserSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {
