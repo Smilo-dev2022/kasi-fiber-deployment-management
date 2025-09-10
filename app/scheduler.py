@@ -20,6 +20,18 @@ def job_sla_scan():
             ),
             {"now": now},
         )
+        # Page P1 incidents that are overdue
+        db.execute(
+            text(
+                """
+            update pons set sla_breaches = sla_breaches + 1
+            where id in (
+              select pon_id from incidents where due_at is not null and status <> 'Closed' and due_at < :now and severity = 'P1'
+            )
+        """
+            ),
+            {"now": now},
+        )
         db.commit()
 
 

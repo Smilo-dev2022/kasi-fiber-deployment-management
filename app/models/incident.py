@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, ForeignKey, DateTime, Text
+from sqlalchemy import Column, String, ForeignKey, DateTime, Text, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from app.core.deps import Base
 
@@ -22,4 +22,7 @@ class Incident(Base):
     root_cause = Column(String, nullable=True)
     fix_code = Column(String, nullable=True)
     nms_ref = Column(String, nullable=True)
+    assigned_org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True)
+    severity_sla_minutes = Column(Integer, nullable=True)
+    due_at = Column(DateTime(timezone=True), nullable=True)
 
