@@ -1,9 +1,13 @@
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
+fastapi==0.115.0
 SQLAlchemy==2.0.36
 psycopg2-binary==2.9.9
 alembic==1.14.0
 pydantic==1.10.18
+apscheduler==3.10.4
+redis==5.0.8
+minio==7.2.8
 qrcode==7.4.2
 pillow==10.4.0
 python-multipart==0.0.9

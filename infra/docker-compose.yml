@@ -16,6 +16,19 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg2://app:app@db:5432/app
+      CORS_ALLOW_ORIGINS: http://localhost:3000
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["/bin/bash", "-lc", "uvicorn app.main:app --host 0.0.0.0 --port 8000"]
   redis:
     image: redis:7-alpine
     ports:

@@ -96,7 +96,7 @@ A comprehensive web application for training and tracking Project Managers and S
 
 ### 1) Start infrastructure (Postgres, Redis, MinIO, Mailhog)
 ```bash
-docker compose -f infra/docker-compose.yml up -d
+docker compose -f infra/docker-compose.yml up -d db redis minio mailhog
 ```
 
 - **Postgres**: localhost:5432 (user: `app`, pass: `app`, db: `app`)
@@ -203,6 +203,12 @@ Key environment variables (see also `docs/secrets.md`):
   - `DISABLE_SLA_MONITOR`, `SLA_MONITOR_INTERVAL_MS`
 
 - Local infra defaults come from `infra/docker-compose.yml`.
+
+### Run API in Docker
+
+```bash
+docker compose -f infra/docker-compose.yml up -d api
+```
 
 ## Major Routers (Core API)
 
