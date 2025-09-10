@@ -5,6 +5,7 @@ from typing import Optional, List
 from uuid import UUID
 
 from app.core.deps import get_db, require_roles
+from app.core.limiter import limiter, key_by_org
 from app.models.certificate_acceptance import CertificateAcceptance
 from app.models.photo import Photo
 
@@ -25,7 +26,7 @@ class CertificateAcceptanceIn(BaseModel):
     checked_by: Optional[str] = None
 
 
-@router.post("", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
+@router.post("", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE")), Depends(limiter(120, 60, key_by_org))])
 def create_certificate_acceptance(payload: CertificateAcceptanceIn, db: Session = Depends(get_db)):
     # Guard: require at least one validated photo (EXIF and geofence OK) for the PON
     has_valid_photo = (

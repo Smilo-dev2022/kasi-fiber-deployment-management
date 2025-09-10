@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from app.core.deps import get_db
 from app.models.task import Task
 from app.models.orgs import Assignment
+from app.core.limiter import limiter, key_by_org
 
 
 router = APIRouter(prefix="", tags=["work-queue"])
@@ -18,7 +19,7 @@ class WorkItem(BaseModel):
     sla_due_at: Optional[str]
 
 
-@router.get("/work-queue", response_model=List[WorkItem])
+@router.get("/work-queue", response_model=List[WorkItem], dependencies=[Depends(limiter(30, 60, key_by_org))])
 def work_queue(db: Session = Depends(get_db), x_org_id: Optional[str] = Header(default=None, alias="X-Org-Id"), x_role: Optional[str] = Header(default=None, alias="X-Role")):
     if not x_org_id:
         raise HTTPException(400, "X-Org-Id required")
