@@ -12,7 +12,12 @@ const app = express();
 connectDB();
 
 // Init Middleware
-app.use(express.json({ extended: false }));
+// Capture raw body for HMAC verification on webhook routes
+app.use(express.json({ extended: false, verify: (req, res, buf) => { req.rawBody = buf; } }));
+// If behind a proxy/load balancer, trust proxy to get correct client IPs
+if (process.env.TRUST_PROXY === 'true') {
+  app.set('trust proxy', true);
+}
 app.use(cors());
 
 // Serve static files (for photo uploads)
@@ -30,6 +35,9 @@ app.use('/api/smme', require('./routes/smme'));
 app.use('/api/stock', require('./routes/stock'));
 app.use('/api/invoicing', require('./routes/invoicing'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/incidents', require('./routes/incident'));
+app.use('/api/devices', require('./routes/devices'));
+app.use('/api/webhooks', require('./routes/webhooks'));
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
