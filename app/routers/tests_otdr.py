@@ -56,39 +56,66 @@ def add_otdr(payload: OTDRIn, db: Session = Depends(get_db)):
         # Get candidate cable polyline for the plan's PON
         row = db.execute(text("select p.pon_id from test_plans tp join pons p on tp.pon_id = p.id where tp.id = :tp"), {"tp": payload.test_plan_id}).first()
         pon_id = row[0] if row else None
-        cable = (
-            db.query(CableRegister)
-            .filter(CableRegister.pon_id == pon_id)
-            .order_by(CableRegister.length_m.desc().nullslast())
+        # Use PostGIS when cable geometry exists, else fallback to polyline JSON
+        rowc = (
+            db.execute(
+                text(
+                    "select id, cable_code, length_m, ST_AsText(geom) as wkt, polyline from cable_register where pon_id = :p order by length_m desc nulls last limit 1"
+                ),
+                {"p": pon_id},
+            )
+            .mappings()
             .first()
         )
-        if cable and cable.polyline:
-            import json
-            try:
-                coords = json.loads(cable.polyline)
-            except Exception:
-                coords = []
-            def snap_distance_to_polyline(dist_m: float):
-                # naive proportional snap along polyline by chainage
-                if not coords or not isfinite(dist_m):
-                    return None
-                total = float(cable.length_m or 0)
-                if total <= 0:
-                    return None
-                t = max(0.0, min(1.0, dist_m / total))
-                idx = int(t * (len(coords) - 1))
-                lat, lng = coords[idx]
-                return lat, lng
-            for d in payload.events_distance_m:
-                snapped = snap_distance_to_polyline(d)
-                if snapped:
-                    db.execute(
-                        text(
-                            "insert into otdr_events (id, otdr_result_id, distance_m, gps_lat, gps_lng, created_at) values (gen_random_uuid(), :rid, :dist, :lat, :lng, now())"
-                        ),
-                        {"rid": oid, "dist": d, "lat": snapped[0], "lng": snapped[1]},
+        if rowc:
+            if rowc["wkt"]:
+                for d in payload.events_distance_m:
+                    if not isfinite(d):
+                        continue
+                    pt = (
+                        db.execute(
+                            text(
+                                "select ST_X(pt) as lng, ST_Y(pt) as lat from (select ST_LineInterpolatePoint(ST_GeomFromText(:wkt, 4326), greatest(0, least(1, :t))) as pt) q"
+                            ),
+                            {"wkt": rowc["wkt"], "t": float(d) / float(rowc["length_m"] or 1.0)},
+                        )
+                        .mappings()
+                        .first()
                     )
-            db.commit()
+                    if pt:
+                        db.execute(
+                            text(
+                                "insert into otdr_events (id, otdr_result_id, distance_m, gps_lat, gps_lng, created_at) values (gen_random_uuid(), :rid, :dist, :lat, :lng, now())"
+                            ),
+                            {"rid": oid, "dist": d, "lat": pt["lat"], "lng": pt["lng"]},
+                        )
+                db.commit()
+            elif rowc["polyline"]:
+                import json
+                try:
+                    coords = json.loads(rowc["polyline"])
+                except Exception:
+                    coords = []
+                def snap_distance_to_polyline(dist_m: float):
+                    if not coords or not isfinite(dist_m):
+                        return None
+                    total = float(rowc["length_m"] or 0)
+                    if total <= 0:
+                        return None
+                    t = max(0.0, min(1.0, dist_m / total))
+                    idx = int(t * (len(coords) - 1))
+                    lat, lng = coords[idx]
+                    return lat, lng
+                for d in payload.events_distance_m:
+                    snapped = snap_distance_to_polyline(d)
+                    if snapped:
+                        db.execute(
+                            text(
+                                "insert into otdr_events (id, otdr_result_id, distance_m, gps_lat, gps_lng, created_at) values (gen_random_uuid(), :rid, :dist, :lat, :lng, now())"
+                            ),
+                            {"rid": oid, "dist": d, "lat": snapped[0], "lng": snapped[1]},
+                        )
+                db.commit()
     return {"ok": True, "id": oid}
 
 
