@@ -11,8 +11,16 @@ router = APIRouter(prefix="/rate-cards", tags=["rate-cards"])
 
 class RateIn(BaseModel):
     smme_id: str
-    step: Literal["PolePlanting", "Stringing", "CAC"]
-    unit: Literal["per_pole", "per_meter", "per_check"]
+    step: Literal[
+        "PolePlanting",
+        "Stringing",
+        "CAC",
+        "Trenching",
+        "ChamberBuild",
+        "Reinstatement",
+        "Mandrel",
+    ]
+    unit: Literal["per_pole", "per_meter", "per_check", "per_m2", "per_chamber"]
     rate_cents: int
     active: bool = True
     valid_from: str

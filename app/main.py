@@ -8,6 +8,7 @@ from app.routers import assets as assets_router
 from app.routers import reports as reports_router
 from app.routers import rate_cards as rate_router
 from app.routers import pay_sheets as pays_router
+from app.routers import civils as civils_router
 
 
 app = FastAPI()
@@ -20,4 +21,5 @@ app.include_router(assets_router.router)
 app.include_router(reports_router.router)
 app.include_router(rate_router.router)
 app.include_router(pays_router.router)
+app.include_router(civils_router.router)
 
