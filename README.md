@@ -1,3 +1,52 @@
+## Stats SA wards (2021) and SubPlaces (2011) loader
+
+This workspace provides a robust, idempotent pipeline to load:
+
+- Wards (Stats SA 2021)
+- SubPlaces (Stats SA 2011), treated as suburbs
+
+It tolerates common field-name variants and will spatially join suburbs to wards when a `WARD_ID` column is missing on suburbs.
+
+### Prerequisites
+
+- PostgreSQL with PostGIS
+- `ogr2ogr` (from GDAL)
+
+### Files
+
+- `sql/load_sa_geographies.sql` — core loader: creates targets, loads data, builds indexes
+- `scripts/import_sa_geographies.sh` — imports shapefiles to staging, runs the loader
+
+### Usage
+
+```bash
+./scripts/import_sa_geographies.sh \
+  --pg "postgresql://user:pass@host:5432/dbname" \
+  --wards /path/to/wards.shp \
+  --suburbs /path/to/suburbs.shp
+```
+
+The script will:
+
+- Load `wards.shp` into `public.wards_src`
+- Load `suburbs.shp` into `public.suburbs_src`
+- Populate `geo_wards` and `geo_suburbs` with normalized columns: `id`, `name`, `ward_id` (for suburbs), and `geom` as WKB
+- Create GiST indexes on decoded geometries
+
+### Supported field variants
+
+- Wards: `(WARD_ID, WARD_NAME)` or `(CODE, NAME)` or `(WARDNO, NAME)`
+- Suburbs: `(SP_CODE, SP_NAME)` or `(SUB_CODE, SUB_NAME)` or fallback to `(gid, NAME)`
+
+If `WARD_ID` is missing on suburbs, a spatial join assigns wards using intersection.
+
+### Inspecting shapefiles before import
+
+```bash
+ogrinfo -so /path/to/wards.shp wards | cat
+ogrinfo -so /path/to/suburbs.shp suburbs | cat
+```
+
 # FIBER PON Tracker App
 
 A comprehensive web application for training and tracking Project Managers and Site Managers on FiberTime sites. The platform tracks PONs (Passive Optical Networks), tasks, Certificate Acceptance (formerly CAC), stringing, photos, SMMEs, stock, invoicing, and more — with evidence enforcement, geofencing, SLA monitoring, and automated status computation.
