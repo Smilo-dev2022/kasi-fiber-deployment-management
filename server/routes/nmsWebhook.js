@@ -1,12 +1,26 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const Incident = require('../models/Incident');
 const Device = require('../models/Device');
 const PON = require('../models/PON');
 
 const router = express.Router();
 
+// Per-IP limiter for webhook abuse isolation (env-driven)
+const webhookIpLimiter = rateLimit({
+  windowMs: Number(process.env.WEBHOOK_IP_LIMIT_WINDOW_MS || 60_000),
+  max: Number(process.env.WEBHOOK_IP_LIMIT_PER_WINDOW || 60),
+  keyGenerator: (req, _res) => {
+    const xff = req.headers['x-forwarded-for'];
+    if (xff) return xff.split(',')[0].trim();
+    return req.ip || req.connection?.remoteAddress || 'unknown';
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // No auth: called by NMS in network. Secure via shared secret header
-router.post('/hook', async (req, res) => {
+router.post('/hook', webhookIpLimiter, async (req, res) => {
   try {
     const secret = process.env.NMS_WEBHOOK_SECRET || 'change-me';
     const provided = req.header('x-webhook-secret');

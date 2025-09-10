@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+import os
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, timezone, timedelta
 from app.core.deps import get_db, require_roles
+from app.core.limiter import limiter, key_by_org
 from app.models.incident import Incident
 from app.schemas.incident import IncidentCreate, IncidentUpdate, IncidentOut
 from app.models.orgs import Contract, Assignment
@@ -22,7 +24,18 @@ def list_incidents(db: Session = Depends(get_db), status: Optional[str] = Query(
     return q.order_by(Incident.opened_at.desc()).all()
 
 
-@router.post("", response_model=IncidentOut, dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
+HEAVY_WRITE_PER_MIN = int(os.getenv("HEAVY_WRITE_PER_ORG_PER_MIN", "120"))
+HEAVY_WRITE_WINDOW_SEC = int(os.getenv("HEAVY_WRITE_WINDOW_SEC", "60"))
+
+
+@router.post(
+    "",
+    response_model=IncidentOut,
+    dependencies=[
+        Depends(require_roles("ADMIN", "PM", "SITE")),
+        Depends(limiter(limit=HEAVY_WRITE_PER_MIN, window_sec=HEAVY_WRITE_WINDOW_SEC, key_fn=key_by_org)),
+    ],
+)
 def create_incident(payload: IncidentCreate, db: Session = Depends(get_db)):
     inc = Incident(**payload.dict())
     # Auto-route assignment by PON/ward and scope
@@ -58,7 +71,14 @@ def create_incident(payload: IncidentCreate, db: Session = Depends(get_db)):
     return inc
 
 
-@router.patch("/{incident_id}", response_model=IncidentOut, dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
+@router.patch(
+    "/{incident_id}",
+    response_model=IncidentOut,
+    dependencies=[
+        Depends(require_roles("ADMIN", "PM", "SITE")),
+        Depends(limiter(limit=HEAVY_WRITE_PER_MIN, window_sec=HEAVY_WRITE_WINDOW_SEC, key_fn=key_by_org)),
+    ],
+)
 def update_incident(incident_id: str, payload: IncidentUpdate, db: Session = Depends(get_db)):
     inc = db.get(Incident, UUID(incident_id))
     if not inc:
@@ -76,7 +96,14 @@ class AssignIn(IncidentUpdate):
     pass
 
 
-@router.patch("/assign", response_model=IncidentOut, dependencies=[Depends(require_roles("ADMIN", "PM", "NOC"))])
+@router.patch(
+    "/assign",
+    response_model=IncidentOut,
+    dependencies=[
+        Depends(require_roles("ADMIN", "PM", "NOC")),
+        Depends(limiter(limit=HEAVY_WRITE_PER_MIN, window_sec=HEAVY_WRITE_WINDOW_SEC, key_fn=key_by_org)),
+    ],
+)
 def assign_incident(id: str = Query(...), org_id: Optional[str] = Query(None), db: Session = Depends(get_db)):
     inc = db.get(Incident, UUID(id))
     if not inc:

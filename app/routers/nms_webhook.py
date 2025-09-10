@@ -86,7 +86,7 @@ def _is_suppressed(db: Session, device: Device | None) -> bool:
     return False
 
 
-@router.post("/librenms", dependencies=[Depends(rate_limit("webhook:librenms", 60, 60))])
+@router.post("/librenms")
 async def librenms(request: Request, db: Session = Depends(get_db)):
     _verify_source(request)
     raw = await request.body()
@@ -132,7 +132,7 @@ async def librenms(request: Request, db: Session = Depends(get_db)):
 
 # Zabbix webhook
 # Expect { "host": "OLT-01", "severity": "Disaster|High|Average|Warning|Info", "event_id": "123", "problem": true, "name": "Link down", "message": "..." }
-@router.post("/zabbix", dependencies=[Depends(rate_limit("webhook:zabbix", 60, 60))])
+@router.post("/zabbix")
 async def zabbix(request: Request, db: Session = Depends(get_db)):
     _verify_source(request)
     raw = await request.body()

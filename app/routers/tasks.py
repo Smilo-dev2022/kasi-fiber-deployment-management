@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
+import os
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from pydantic import BaseModel
 from typing import Optional, List
 from app.core.deps import get_db, require_roles
+from app.core.limiter import limiter, key_by_org
 from app.models.task import Task
 from app.models.orgs import Assignment
 
@@ -26,7 +28,17 @@ DEFAULT_SLA = {
 }
 
 
-@router.patch("/{task_id}", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
+HEAVY_WRITE_PER_MIN = int(os.getenv("HEAVY_WRITE_PER_ORG_PER_MIN", "120"))
+HEAVY_WRITE_WINDOW_SEC = int(os.getenv("HEAVY_WRITE_WINDOW_SEC", "60"))
+
+
+@router.patch(
+    "/{task_id}",
+    dependencies=[
+        Depends(require_roles("ADMIN", "PM", "SITE")),
+        Depends(limiter(limit=HEAVY_WRITE_PER_MIN, window_sec=HEAVY_WRITE_WINDOW_SEC, key_fn=key_by_org)),
+    ],
+)
 def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(get_db)):
     from uuid import UUID
 

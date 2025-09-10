@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+import os
 from fastapi import Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -6,6 +7,7 @@ from datetime import datetime, timezone, timedelta
 from uuid import UUID
 
 from app.core.deps import get_db, require_roles
+from app.core.limiter import limiter, key_by_org
 from app.models.photo import Photo
 from app.models.pon import PON
 from app.services.s3 import get_object_bytes, head_object, settings
@@ -31,7 +33,17 @@ def dist_m(a_lat, a_lng, b_lat, b_lng):
     return 2 * R * asin(sqrt(h))
 
 
-@router.post("/register", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "SMME"))])
+HEAVY_WRITE_PER_MIN = int(os.getenv("HEAVY_WRITE_PER_ORG_PER_MIN", "120"))
+HEAVY_WRITE_WINDOW_SEC = int(os.getenv("HEAVY_WRITE_WINDOW_SEC", "60"))
+
+
+@router.post(
+    "/register",
+    dependencies=[
+        Depends(require_roles("ADMIN", "PM", "SITE", "SMME")),
+        Depends(limiter(limit=HEAVY_WRITE_PER_MIN, window_sec=HEAVY_WRITE_WINDOW_SEC, key_fn=key_by_org)),
+    ],
+)
 def register(payload: RegisterIn, db: Session = Depends(get_db), request: Request = None):
     p: Photo | None = db.get(Photo, UUID(payload.photo_id))
     if not p:

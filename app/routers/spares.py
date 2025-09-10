@@ -2,9 +2,11 @@ from uuid import UUID, uuid4
 from datetime import datetime, timezone
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
+import os
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.core.deps import get_db, require_roles
+from app.core.limiter import limiter, key_by_org
 
 
 router = APIRouter(prefix="/spares", tags=["spares"])
@@ -18,7 +20,17 @@ class IssueIn(BaseModel):
     notes: str | None = None
 
 
-@router.post("/issue", dependencies=[Depends(require_roles("ADMIN", "PM", "NOC"))])
+HEAVY_WRITE_PER_MIN = int(os.getenv("HEAVY_WRITE_PER_ORG_PER_MIN", "120"))
+HEAVY_WRITE_WINDOW_SEC = int(os.getenv("HEAVY_WRITE_WINDOW_SEC", "60"))
+
+
+@router.post(
+    "/issue",
+    dependencies=[
+        Depends(require_roles("ADMIN", "PM", "NOC")),
+        Depends(limiter(limit=HEAVY_WRITE_PER_MIN, window_sec=HEAVY_WRITE_WINDOW_SEC, key_fn=key_by_org)),
+    ],
+)
 def issue_spare(payload: IssueIn, db: Session = Depends(get_db)):
     if payload.qty <= 0:
         raise HTTPException(400, "qty must be positive")
@@ -64,7 +76,13 @@ class ReturnIn(BaseModel):
     notes: str | None = None
 
 
-@router.post("/return", dependencies=[Depends(require_roles("ADMIN", "PM", "NOC"))])
+@router.post(
+    "/return",
+    dependencies=[
+        Depends(require_roles("ADMIN", "PM", "NOC")),
+        Depends(limiter(limit=HEAVY_WRITE_PER_MIN, window_sec=HEAVY_WRITE_WINDOW_SEC, key_fn=key_by_org)),
+    ],
+)
 def return_spare(payload: ReturnIn, db: Session = Depends(get_db)):
     if payload.qty <= 0:
         raise HTTPException(400, "qty must be positive")

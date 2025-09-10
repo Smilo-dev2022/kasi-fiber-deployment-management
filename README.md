@@ -103,8 +103,34 @@ Ensure production environment variables are set:
 - `NMS_ALLOW_IPS`: Comma-separated source IPs allowed for webhooks
 - `NMS_HMAC_SECRET`: Shared secret used to verify HMAC (`X-Signature`)
 - `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`
+ - `WEBHOOK_IP_LIMIT_PER_MIN`: Per-IP webhook request cap per minute (FastAPI)
+ - `WEBHOOK_IP_LIMIT_WINDOW_SEC`: Window seconds for webhook rate limit (FastAPI)
+ - `WEBHOOK_IP_LIMIT_PER_WINDOW`: Per-IP webhook cap per window (Express)
+ - `WEBHOOK_IP_LIMIT_WINDOW_MS`: Window ms for webhook limit (Express)
+ - `HEAVY_WRITE_PER_ORG_PER_MIN`: Per-org write cap per minute (FastAPI heavy writes)
+ - `HEAVY_WRITE_WINDOW_SEC`: Window seconds for heavy write limit
 ### Staging/Prod Env Files
 Create `.env.staging` and `.env.prod` per ops rollout.
+
+Recommended defaults:
+
+```
+# Staging
+WEBHOOK_IP_LIMIT_PER_MIN=30
+WEBHOOK_IP_LIMIT_WINDOW_SEC=60
+WEBHOOK_IP_LIMIT_PER_WINDOW=30
+WEBHOOK_IP_LIMIT_WINDOW_MS=60000
+HEAVY_WRITE_PER_ORG_PER_MIN=60
+HEAVY_WRITE_WINDOW_SEC=60
+
+# Production
+WEBHOOK_IP_LIMIT_PER_MIN=300
+WEBHOOK_IP_LIMIT_WINDOW_SEC=60
+WEBHOOK_IP_LIMIT_PER_WINDOW=300
+WEBHOOK_IP_LIMIT_WINDOW_MS=60000
+HEAVY_WRITE_PER_ORG_PER_MIN=240
+HEAVY_WRITE_WINDOW_SEC=60
+```
 
 ### Alembic
 Run migrations using:
