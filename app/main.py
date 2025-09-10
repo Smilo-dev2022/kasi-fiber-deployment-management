@@ -9,6 +9,10 @@ from app.routers import reports as reports_router
 from app.routers import rate_cards as rate_router
 from app.routers import pay_sheets as pays_router
 from app.routers import photos_upload_hook as photos_upload_router
+from app.routers import devices as devices_router
+from app.routers import incidents as incidents_router
+from app.routers import optical as optical_router
+from app.routers import nms_webhook as nms_router
 from app.scheduler import init_jobs
 
 
@@ -23,6 +27,10 @@ app.include_router(reports_router.router)
 app.include_router(rate_router.router)
 app.include_router(pays_router.router)
 app.include_router(photos_upload_router.router)
+app.include_router(devices_router.router)
+app.include_router(incidents_router.router)
+app.include_router(optical_router.router)
+app.include_router(nms_router.router)
 
 init_jobs()
 
