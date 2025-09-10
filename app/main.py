@@ -1,6 +1,6 @@
 import os
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import tasks as tasks_router
@@ -30,6 +30,8 @@ from app.routers import maintenance as maint_router
 from app.routers import configs as configs_router
 from app.routers import spares as spares_router
 from app.scheduler import init_jobs
+from app.core.health import router as health_router
+from app.core.limiter import limiter, key_by_ip
 
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -67,12 +69,17 @@ app.include_router(splices_router.router)
 app.include_router(plans_router.router)
 app.include_router(otdr_router.router)
 app.include_router(lspm_router.router)
-app.include_router(nms_router.router)
+app.include_router(
+    nms_router.router,
+    dependencies=[limiter(limit=60, window_sec=60, key_fn=key_by_ip)],
+)
 app.include_router(workq_router.router)
 app.include_router(topo_router.router)
 app.include_router(maint_router.router)
 app.include_router(configs_router.router)
 app.include_router(spares_router.router)
+# register health endpoints
+app.include_router(health_router)
 
 init_jobs()
 
@@ -82,13 +89,11 @@ async def _log_jobs():
     logging.getLogger(__name__).info("APScheduler initialized with SLA scan, photo revalidate, weekly report")
 
 
-@app.get("/healthz")
-def healthz():
-    return {"status": "ok"}
+@app.middleware("http")
+async def add_org_to_state(request: Request, call_next):
+    # set request.state.org_id if you decode it in your auth dependency
+    return await call_next(request)
 
 
-@app.get("/readyz")
-def readyz():
-    # If needed, extend with DB ping
-    return {"ready": True}
+ 
 
