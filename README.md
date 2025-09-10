@@ -1,3 +1,67 @@
+## Stats SA Wards (2021) and SubPlace (2011) Loader
+
+This project imports South Africa Stats SA Wards (2021) and SubPlaces (2011, used here as "suburbs") into PostGIS, handling common field name variants and performing a spatial join to infer `ward_id` when the suburbs dataset lacks it.
+
+### Prerequisites
+
+- PostgreSQL with PostGIS
+- GDAL (`ogr2ogr`, `ogrinfo`)
+
+### Destination Tables
+
+- `geo_wards(id text primary key, name text, geom bytea)`
+- `geo_suburbs(id text primary key, name text, ward_id text, geom bytea)`
+
+Geometry is stored as WKB (`bytea`). Spatial indexes are created on expressions over `ST_GeomFromWKB(geom)`.
+
+### Source Tables
+
+The script imports shapefiles into:
+
+- `wards_src`
+- `suburbs_src`
+
+Field name variants supported:
+
+- Wards ID: `ward_id` | `code` | `wardno`
+- Wards name: `ward_name` | `name`
+- Suburbs ID: `sp_code` | `sub_code` | `code`
+- Suburbs name: `sp_name` | `sub_name` | `name`
+- Suburbs ward reference: `ward_id` | `wardno` (if absent, a spatial join is used)
+
+### Usage
+
+Set environment variables and run the import script:
+
+```bash
+export PGHOST=localhost
+export PGPORT=5432
+export PGUSER=postgres
+export PGPASSWORD=yourpassword
+export PGDATABASE=yourdb
+
+# Input datasets (paths to .shp or other OGR-compatible sources)
+export WARDS_SHP=/path/to/wards_2021.shp
+export SUBURBS_SHP=/path/to/subplace_2011.shp
+
+# Optional layer hints (defaults: wards, suburbs)
+# export WARDS_LAYER=wards
+# export SUBURBS_LAYER=suburbs
+
+bash scripts/import_geo.sh
+```
+
+The script will:
+
+1. Inspect the inputs with `ogrinfo -so`.
+2. Import them into `wards_src` and `suburbs_src` (geometry column `wkb_geometry`).
+3. Execute `sql/load_geo.sql` to populate `geo_wards` and `geo_suburbs` with indexes.
+
+### Notes
+
+- If `suburbs_src` lacks a ward reference, the loader performs a spatial join to `wards_src` using `ST_Intersects` after extracting polygonal components and promoting to multi (`ST_CollectionExtract(...,3)` + `ST_Multi`).
+- You can re-run the script to refresh data; destination tables are truncated before load.
+
 # FIBER PON Tracker App
 
 A comprehensive web application for training and tracking Project Managers and Site Managers on FiberTime sites. The platform tracks PONs (Passive Optical Networks), tasks, Certificate Acceptance (formerly CAC), stringing, photos, SMMEs, stock, invoicing, and more — with evidence enforcement, geofencing, SLA monitoring, and automated status computation.
