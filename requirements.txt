@@ -7,3 +7,12 @@ pydantic==1.10.18
 qrcode==7.4.2
 pillow==10.4.0
 python-multipart==0.0.9
+apscheduler==3.10.4
+sentry-sdk==2.12.0
+python-json-logger==2.0.7
+PyJWT==2.9.0
+pytest==8.3.2
+pytest-cov==4.1.0
+httpx==0.27.2
+freezegun==1.5.1
+pytz==2024.1
