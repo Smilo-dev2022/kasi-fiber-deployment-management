@@ -77,6 +77,7 @@ router.post('/', [
   body('ponId', 'PON ID is required').not().isEmpty(),
   body('name', 'Name is required').not().isEmpty(),
   body('location', 'Location is required').not().isEmpty(),
+  body('ward').optional().isString(),
   body('startDate', 'Start date is required').isISO8601(),
   body('expectedEndDate', 'Expected end date is required').isISO8601(),
   body('fiberCount', 'Fiber count must be a positive number').isInt({ min: 1 })

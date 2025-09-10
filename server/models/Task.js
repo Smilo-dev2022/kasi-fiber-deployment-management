@@ -40,6 +40,11 @@ const TaskSchema = new mongoose.Schema({
     enum: ['pending', 'in_progress', 'completed', 'cancelled', 'on_hold'],
     default: 'pending'
   },
+  breached: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
   startDate: {
     type: Date
   },
@@ -65,6 +70,7 @@ const TaskSchema = new mongoose.Schema({
   evidencePhotos: [{
     filename: String,
     originalName: String,
+    mimeType: String,
     uploadDate: {
       type: Date,
       default: Date.now
@@ -72,8 +78,20 @@ const TaskSchema = new mongoose.Schema({
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
-    }
+    },
+    exif: {
+      gps: {
+        latitude: Number,
+        longitude: Number
+      },
+      takenTs: Date
+    },
+    withinGeofence: Boolean
   }],
+  asset: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Asset'
+  },
   notes: String,
   dependencies: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -82,6 +100,9 @@ const TaskSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Indexes
+TaskSchema.index({ pon: 1, breached: 1 });
 
 // Check if task can be started (dependencies completed)
 TaskSchema.methods.canStart = async function() {

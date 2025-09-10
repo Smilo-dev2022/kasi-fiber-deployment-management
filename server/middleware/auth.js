@@ -9,7 +9,18 @@ const auth = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    let decoded;
+    const primary = process.env.JWT_SECRET || 'fallback_secret';
+    const previous = process.env.JWT_PREV_SECRET;
+    try {
+      decoded = jwt.verify(token, primary);
+    } catch (e) {
+      if (previous) {
+        decoded = jwt.verify(token, previous);
+      } else {
+        throw e;
+      }
+    }
     const user = await User.findById(decoded.user.id).select('-password');
     
     if (!user || !user.isActive) {

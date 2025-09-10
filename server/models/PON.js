@@ -17,6 +17,11 @@ const PONSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  ward: {
+    type: String,
+    trim: true,
+    index: true
+  },
   coordinates: {
     latitude: Number,
     longitude: Number
@@ -75,6 +80,9 @@ const PONSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Indexes for performance
+PONSchema.index({ status: 1, ward: 1 });
 
 // Auto-compute progress based on related tasks
 PONSchema.methods.updateProgress = async function() {

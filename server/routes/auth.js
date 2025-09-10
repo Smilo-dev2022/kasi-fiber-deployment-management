@@ -13,7 +13,7 @@ router.post('/register', [
   body('name', 'Name is required').not().isEmpty(),
   body('email', 'Please include a valid email').isEmail(),
   body('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 }),
-  body('role', 'Role must be specified').isIn(['project_manager', 'site_manager'])
+  body('role', 'Role must be specified').isIn(['project_manager', 'site_manager', 'admin'])
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {

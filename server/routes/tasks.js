@@ -109,9 +109,21 @@ router.put('/:id/status', auth, async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    // Check if evidence is required for completion
-    if (status === 'completed' && task.evidenceRequired && task.evidencePhotos.length === 0) {
-      return res.status(400).json({ message: 'Evidence photos required before marking as completed' });
+    // Block CAC and Stringing completion if evidence outside geofence
+    if (status === 'completed' && task.evidenceRequired) {
+      if (task.evidencePhotos.length === 0) {
+        return res.status(400).json({ message: 'Evidence photos required before marking as completed' });
+      }
+      const allWithin = task.evidencePhotos.every(p => p.withinGeofence !== false);
+      if (!allWithin) {
+        return res.status(400).json({ message: 'Evidence not within geofence' });
+      }
+    }
+    if (status === 'completed' && ['cac_check', 'stringing'].includes(task.type)) {
+      const anyOutside = task.evidencePhotos.some(p => p.withinGeofence === false);
+      if (anyOutside) {
+        return res.status(400).json({ message: 'Cannot complete CAC/Stringing with out-of-geofence evidence' });
+      }
     }
 
     task.status = status;
