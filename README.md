@@ -82,10 +82,17 @@ A comprehensive web application for training and tracking Project Managers and S
    npm start
    ```
 
-### Full Development Mode
-Run both backend and frontend simultaneously:
+### Backend (FastAPI) quick start
 ```bash
-npm run dev
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# set database URL (defaults to sqlite file)
+export DATABASE_URL=sqlite:////workspace/app.db
+
+alembic upgrade head
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ## API Endpoints
