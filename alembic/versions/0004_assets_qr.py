@@ -16,10 +16,15 @@ def upgrade():
         sa.Column("sku", sa.String(), nullable=True),
         sa.Column("status", sa.String(), server_default=sa.text("'In Store'"), nullable=False),
         sa.Column("pon_id", sa.dialects.postgresql.UUID(as_uuid=True), sa.ForeignKey("pons.id")),
-        sa.Column("issued_to", sa.dialects.postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id")),
+        # issued_to is optional and may reference a user; omit FK to avoid dependency on users table
+        sa.Column("issued_to", sa.dialects.postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("installed_at", sa.DateTime(timezone=True), nullable=True),
     )
-    op.add_column("stock_issues", sa.Column("asset_code", sa.String(), nullable=True))
+    # Add column only if stock_issues table exists
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if inspector.has_table("stock_issues"):
+        op.add_column("stock_issues", sa.Column("asset_code", sa.String(), nullable=True))
     op.add_column("photos", sa.Column("asset_code", sa.String(), nullable=True))
     op.create_index("idx_assets_code", "assets", ["code"]) 
     op.create_index("idx_assets_status", "assets", ["status"]) 
