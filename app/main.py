@@ -68,6 +68,11 @@ app.include_router(workq_router.router)
 
 init_jobs()
 
+@app.on_event("startup")
+async def _log_jobs():
+    import logging
+    logging.getLogger(__name__).info("APScheduler initialized with SLA scan, photo revalidate, weekly report")
+
 
 @app.get("/healthz")
 def healthz():

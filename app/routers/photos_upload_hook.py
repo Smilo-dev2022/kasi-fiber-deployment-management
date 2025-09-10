@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
@@ -31,12 +32,16 @@ def dist_m(a_lat, a_lng, b_lat, b_lng):
 
 
 @router.post("/register", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "SMME"))])
-def register(payload: RegisterIn, db: Session = Depends(get_db)):
+def register(payload: RegisterIn, db: Session = Depends(get_db), request: Request = None):
     p: Photo | None = db.get(Photo, UUID(payload.photo_id))
     if not p:
         raise HTTPException(404, "Photo not found")
 
     # Read from S3 and parse EXIF
+    # Basic content-type allowlist (JPEG/PNG)
+    ct = request.headers.get("Content-Type", "application/json") if request else "application/json"
+    if "json" not in ct:
+        raise HTTPException(415, "Unsupported Media Type")
     blob = get_object_bytes(payload.s3_key)
     meta = parse_exif(blob)
 

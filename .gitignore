@@ -10,3 +10,5 @@ coverage/
 .nyc_output/
 client/build/
 client/node_modules/
+.venv/
+.env.*
