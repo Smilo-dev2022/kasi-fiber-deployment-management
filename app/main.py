@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import tasks as tasks_router
-from app.routers import cac as cac_router
+from app.routers import cac as cert_accept_router
 from app.routers import pons_geofence as pons_geo_router
 from app.routers import photos_validate as photos_val_router
 from app.routers import assets as assets_router
@@ -25,6 +25,10 @@ from app.routers import tests_plans as plans_router
 from app.routers import tests_otdr as otdr_router
 from app.routers import tests_lspm as lspm_router
 from app.routers import work_queue as workq_router
+from app.routers import stringing_runs as stringing_router
+from app.routers import invoices as invoices_router
+from app.routers import smmes as smmes_router
+from app.routers import stock_api as stock_router
 from app.scheduler import init_jobs
 
 
@@ -44,7 +48,7 @@ app.add_middleware(
 )
 
 app.include_router(tasks_router.router)
-app.include_router(cac_router.router)
+app.include_router(cert_accept_router.router)
 app.include_router(pons_geo_router.router)
 app.include_router(photos_val_router.router)
 app.include_router(assets_router.router)
@@ -65,6 +69,10 @@ app.include_router(otdr_router.router)
 app.include_router(lspm_router.router)
 app.include_router(nms_router.router)
 app.include_router(workq_router.router)
+app.include_router(stringing_router.router)
+app.include_router(invoices_router.router)
+app.include_router(smmes_router.router)
+app.include_router(stock_router.router)
 
 init_jobs()
 

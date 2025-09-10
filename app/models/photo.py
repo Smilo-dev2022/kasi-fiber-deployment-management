@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, DateTime, Boolean, Numeric, ForeignKey
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import UUID
 from app.core.deps import Base
 
@@ -15,4 +16,5 @@ class Photo(Base):
     exif_ok = Column(Boolean, nullable=False, default=False, server_default="false")
     within_geofence = Column(Boolean, nullable=False, default=False, server_default="false")
     asset_code = Column(String, nullable=True)
+    tags = Column(ARRAY(String), nullable=False, server_default="{}")
 

@@ -38,7 +38,7 @@ def generate(payload: GenIn, db: Session = Depends(get_db)):
     ),
     cac_pass as (
       select c.pon_id, u.id as smme_id, count(*)::numeric as qty, 'CAC'::text as step
-      from cac_checks c
+      from certificate_acceptance c
       join users u on u.id = c.checked_by
       where c.passed = true and date(c.checked_at) between :s and :e
       group by c.pon_id, u.id

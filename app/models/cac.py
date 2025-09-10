@@ -1,10 +1,10 @@
-from sqlalchemy import Column, String, Boolean, Numeric, ForeignKey
+from sqlalchemy import Column, String, Boolean, Numeric, ForeignKey, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from app.core.deps import Base
 
 
-class CACCheck(Base):
-    __tablename__ = "cac_checks"
+class CertificateAcceptance(Base):
+    __tablename__ = "certificate_acceptance"
 
     id = Column(UUID(as_uuid=True), primary_key=True)
     pon_id = Column(UUID(as_uuid=True), ForeignKey("pons.id"), nullable=False)
@@ -16,4 +16,6 @@ class CACCheck(Base):
     alignment_ok = Column(Boolean, nullable=False, default=True, server_default="true")
     comments = Column(String, nullable=True)
     passed = Column(Boolean, nullable=False, default=True, server_default="true")
+    checked_by = Column(UUID(as_uuid=True), nullable=True)
+    checked_at = Column(DateTime(timezone=True), nullable=True)
 
