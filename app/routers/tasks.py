@@ -4,6 +4,7 @@ from datetime import timedelta
 from pydantic import BaseModel
 from typing import Optional
 from app.core.deps import get_db, require_roles
+from app.models.photo import Photo
 from app.models.task import Task
 
 
@@ -42,6 +43,24 @@ def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(get_d
             task.sla_due_at = task.started_at + timedelta(minutes=mins)
     if "status" in data and data["status"] == "Done" and task.sla_due_at and task.completed_at:
         task.breached = task.completed_at > task.sla_due_at
+        # Enforce photo+GPS for closure when task linked to a PON
+        if task.pon_id:
+            # Must have at least one recent photo within geofence in last 24h
+            from datetime import datetime, timezone, timedelta
+            now = datetime.now(timezone.utc)
+            recent = (
+                db.query(Photo)
+                .filter(
+                    Photo.pon_id == task.pon_id,
+                    Photo.taken_ts.isnot(None),
+                    Photo.exif_ok == True,
+                    Photo.within_geofence == True,
+                    Photo.taken_ts >= now - timedelta(hours=24),
+                )
+                .first()
+            )
+            if not recent:
+                raise HTTPException(400, "Photo with valid EXIF+GPS within geofence required to close task")
     db.commit()
     return {"ok": True, "breached": task.breached, "sla_due_at": task.sla_due_at}
 
