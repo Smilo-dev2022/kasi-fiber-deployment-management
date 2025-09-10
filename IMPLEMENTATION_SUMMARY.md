@@ -1,3 +1,31 @@
+Add organizations, contracts, assignments, work queue, and auto-routing
+
+Key changes:
+
+- Alembic 0009: Added `organizations`, `contracts`, `assignments`; new fields on `tasks` and `incidents`; indexes and FKs.
+- Models: Updated `Incident`, `Task`, `PON` with fields for org assignment and ward/pon_number.
+- Service: New `app/services/routing.py` for assignment lookup and SLA calculation; used by webhooks and tasks.
+- Routers: New `contracts`, `assignments`, `work_queue`, `incidents_assign` endpoints.
+- Webhook: LibreNMS handler now routes incidents with SLA due time.
+- Tasks: Update handler auto-assigns contractor org based on step and PON.
+- Main: Registered new routers.
+- Seed: Added `db/init/020_seed_orgs_contracts_assignments.sql` with sample orgs, contract, and assignments.
+
+Smoke checks (examples):
+
+```bash
+# create contract
+curl -s -X POST http://127.0.0.1:8000/contracts -H "X-Role: ADMIN" -H "Content-Type: application/json" \
+ -d '{"org_id":"<ORG-UUID>","scope":"Maintenance","wards":["48","49"],"sla_minutes_p1":120,"sla_minutes_p2":240,"sla_minutes_p3":1440,"sla_minutes_p4":4320}'
+
+# create assignment
+curl -s -X POST http://127.0.0.1:8000/assignments -H "X-Role: ADMIN" -H "Content-Type: application/json" \
+ -d '{"org_id":"<CIVIL-ORG-UUID>","scope":"Civil","ward":"48","priority":10}'
+
+# my work queue (requires X-Org-Id header)
+curl -s http://127.0.0.1:8000/work-queue -H "X-Org-Id: <ORG-UUID>"
+```
+
 # FIBER PON Tracker App - Implementation Summary
 
 ## 🎯 Project Goals Achieved

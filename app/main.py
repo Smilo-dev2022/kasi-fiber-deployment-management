@@ -23,6 +23,10 @@ from app.routers import tests_plans as plans_router
 from app.routers import tests_otdr as otdr_router
 from app.routers import tests_lspm as lspm_router
 from app.scheduler import init_jobs
+from app.routers import contracts as contracts_router
+from app.routers import assignments as assignments_router
+from app.routers import work_queue as work_queue_router
+from app.routers import incidents_assign as incidents_assign_router
 
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -59,6 +63,10 @@ app.include_router(plans_router.router)
 app.include_router(otdr_router.router)
 app.include_router(lspm_router.router)
 app.include_router(nms_router.router)
+app.include_router(contracts_router.router)
+app.include_router(assignments_router.router)
+app.include_router(work_queue_router.router)
+app.include_router(incidents_assign_router.router)
 
 init_jobs()
 

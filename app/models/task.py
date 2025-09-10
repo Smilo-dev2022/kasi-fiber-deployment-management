@@ -16,4 +16,5 @@ class Task(Base):
     sla_minutes = Column(Integer, nullable=True)
     sla_due_at = Column(DateTime(timezone=True), nullable=True)
     breached = Column(Boolean, nullable=False, default=False, server_default="false")
+    assigned_org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True)
 

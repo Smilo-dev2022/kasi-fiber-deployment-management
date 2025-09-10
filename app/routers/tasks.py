@@ -5,6 +5,8 @@ from pydantic import BaseModel
 from typing import Optional
 from app.core.deps import get_db, require_roles
 from app.models.task import Task
+from app.models.pon import PON
+from app.services.routing import route_task
 
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -42,6 +44,10 @@ def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(get_d
             task.sla_due_at = task.started_at + timedelta(minutes=mins)
     if "status" in data and data["status"] == "Done" and task.sla_due_at and task.completed_at:
         task.breached = task.completed_at > task.sla_due_at
+    if task.pon_id:
+        pon = db.get(PON, task.pon_id)
+        if pon:
+            route_task(db, task, pon)
     db.commit()
     return {"ok": True, "breached": task.breached, "sla_due_at": task.sla_due_at}
 

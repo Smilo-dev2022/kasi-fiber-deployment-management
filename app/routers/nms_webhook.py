@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from app.core.deps import get_db
 from app.models.incident import Incident
 from app.models.device import Device
+from app.services.routing import route_incident
+from app.models.pon import PON
 
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -38,6 +40,8 @@ async def librenms(request: Request, db: Session = Depends(get_db)):
         opened_at=datetime.now(timezone.utc),
     )
     db.add(inc)
+    pon = db.get(PON, device.pon_id) if device and device.pon_id else None
+    route_incident(db, inc, pon)
     db.commit()
     return {"ok": True, "incident_id": str(inc.id)}
 
