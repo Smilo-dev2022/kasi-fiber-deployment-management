@@ -1,8 +1,11 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+const exifr = require('exifr');
 const { v4: uuidv4 } = require('uuid');
 const Task = require('../models/Task');
+const PON = require('../models/PON');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -57,12 +60,57 @@ router.post('/upload/:taskId', auth, upload.single('photo'), async (req, res) =>
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    // Add photo to task
+    // Parse EXIF for GPS and timestamp
+    let metadata = {};
+    try {
+      const filePath = path.join('uploads', req.file.filename);
+      const exif = await exifr.parse(filePath, { gps: true });
+      if (exif) {
+        metadata = {
+          exifDate: exif.DateTimeOriginal || exif.CreateDate || null,
+          gpsLatitude: exif.latitude || null,
+          gpsLongitude: exif.longitude || null,
+          gpsAccuracy: exif.GPSHPositioningError || null
+        };
+      }
+    } catch (err) {
+      // Non-fatal: keep upload but note missing EXIF
+      metadata = { exifError: true };
+    }
+
+    // Validate GPS proximity to PON if available
+    let gpsValid = null;
+    try {
+      if (metadata.gpsLatitude != null && metadata.gpsLongitude != null) {
+        const pon = await PON.findById(task.pon);
+        if (pon?.coordinates?.latitude != null && pon?.coordinates?.longitude != null) {
+          const toRad = (v) => v * Math.PI / 180;
+          const R = 6371e3;
+          const dLat = toRad(metadata.gpsLatitude - pon.coordinates.latitude);
+          const dLon = toRad(metadata.gpsLongitude - pon.coordinates.longitude);
+          const lat1 = toRad(pon.coordinates.latitude);
+          const lat2 = toRad(metadata.gpsLatitude);
+          const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon/2) * Math.sin(dLon/2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+          const distanceMeters = R * c;
+          const allowedMeters = parseInt(process.env.PHOTO_GPS_RADIUS_METERS || '150', 10);
+          gpsValid = distanceMeters <= allowedMeters;
+          metadata.distanceMeters = Math.round(distanceMeters);
+          metadata.allowedRadiusMeters = allowedMeters;
+        }
+      }
+    } catch (err) {
+      // ignore validation errors
+    }
+
+    // Add photo to task with metadata
     const photoData = {
       filename: req.file.filename,
       originalName: req.file.originalname,
       uploadedBy: req.user.id,
-      uploadDate: new Date()
+      uploadDate: new Date(),
+      metadata,
+      gpsValid
     };
 
     task.evidencePhotos.push(photoData);

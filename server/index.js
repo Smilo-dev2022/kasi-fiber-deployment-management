@@ -30,6 +30,10 @@ app.use('/api/stock', require('./routes/stock'));
 app.use('/api/invoicing', require('./routes/invoicing'));
 app.use('/api/reports', require('./routes/reports'));
 
+// Start background services
+const { startSlaMonitor } = require('./services/slaMonitor');
+startSlaMonitor();
+
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/build')));
