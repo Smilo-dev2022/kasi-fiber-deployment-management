@@ -4,6 +4,7 @@ from sqlalchemy import text
 from uuid import uuid4
 from pydantic import BaseModel, Field
 from app.core.deps import get_db, require_roles
+from app.core.limiter import limiter, key_by_org
 
 
 router = APIRouter(prefix="/splices", tags=["splices"])
@@ -20,7 +21,10 @@ class SpliceIn(BaseModel):
     passed: bool = True
 
 
-@router.post("", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
+@router.post(
+    "",
+    dependencies=[Depends(require_roles("ADMIN", "PM", "SITE")), Depends(limiter(120, 60, key_by_org))],
+)
 def add_splice(payload: SpliceIn, db: Session = Depends(get_db)):
     sid = str(uuid4())
     db.execute(
