@@ -8,7 +8,7 @@ from uuid import UUID
 from app.core.deps import get_db, require_roles
 from app.models.photo import Photo
 from app.models.pon import PON
-from app.services.s3 import get_object_bytes
+from app.services.s3 import get_object_bytes, head_object, settings
 from app.services.exif import parse_exif
 
 
@@ -37,11 +37,19 @@ def register(payload: RegisterIn, db: Session = Depends(get_db), request: Reques
     if not p:
         raise HTTPException(404, "Photo not found")
 
+    # Validate S3 object metadata for size/type
+    try:
+        meta = head_object(payload.s3_key)
+    except Exception:
+        raise HTTPException(404, "S3 object not found")
+    ctype = (meta.get("ContentType") or "").lower()
+    size = int(meta.get("ContentLength") or 0)
+    if settings.ALLOWED_CONTENT_TYPES and ctype not in settings.ALLOWED_CONTENT_TYPES:
+        raise HTTPException(415, f"Unsupported Content-Type: {ctype}")
+    if size <= 0 or size > settings.FILE_MAX_BYTES:
+        raise HTTPException(413, "File too large")
+
     # Read from S3 and parse EXIF
-    # Basic content-type allowlist (JPEG/PNG)
-    ct = request.headers.get("Content-Type", "application/json") if request else "application/json"
-    if "json" not in ct:
-        raise HTTPException(415, "Unsupported Media Type")
     blob = get_object_bytes(payload.s3_key)
     meta = parse_exif(blob)
 
