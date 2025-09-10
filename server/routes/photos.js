@@ -57,12 +57,22 @@ router.post('/upload/:taskId', auth, upload.single('photo'), async (req, res) =>
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
+    // Parse optional GPS from request headers or body
+    const gpsLat = req.body.gpsLat ? Number(req.body.gpsLat) : undefined;
+    const gpsLng = req.body.gpsLng ? Number(req.body.gpsLng) : undefined;
+    const exifOk = req.body.exifOk === 'true' || req.body.exifOk === true;
+    const withinGeofence = req.body.withinGeofence === 'true' || req.body.withinGeofence === true;
+
     // Add photo to task
     const photoData = {
       filename: req.file.filename,
       originalName: req.file.originalname,
       uploadedBy: req.user.id,
-      uploadDate: new Date()
+      uploadDate: new Date(),
+      gpsLat,
+      gpsLng,
+      exifOk,
+      withinGeofence
     };
 
     task.evidencePhotos.push(photoData);

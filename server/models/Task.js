@@ -72,7 +72,11 @@ const TaskSchema = new mongoose.Schema({
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
-    }
+    },
+    gpsLat: Number,
+    gpsLng: Number,
+    exifOk: { type: Boolean, default: false },
+    withinGeofence: { type: Boolean, default: false }
   }],
   sla: {
     enabled: {

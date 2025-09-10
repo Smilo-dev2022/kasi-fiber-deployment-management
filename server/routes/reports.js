@@ -6,6 +6,9 @@ const { auth, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Ops KPI: Uptime (by ward) and MTTR using incidents
+const Incident = require('../models/Incident');
+
 // @route   GET api/reports/dashboard
 // @desc    Get dashboard statistics
 // @access  Private
@@ -158,3 +161,52 @@ router.get('/export/:type', auth, async (req, res) => {
 });
 
 module.exports = router;
+// @route   GET api/reports/ops
+// @desc    Ops KPIs: uptime by ward, MTTR, repeat faults (last 30 days)
+// @access  Private
+router.get('/ops', auth, async (req, res) => {
+  try {
+    const now = new Date();
+    const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const match = { openedAt: { $gte: since } };
+    const agg = await Incident.aggregate([
+      { $match: match },
+      { $group: {
+        _id: { ward: '$ward', device: '$device' },
+        list: { $push: { openedAt: '$openedAt', resolvedAt: '$resolvedAt' } }
+      }}
+    ]);
+
+    const wardUptime = new Map();
+    let totalRepairSeconds = 0;
+    let repairCount = 0;
+    let repeatFaultDevices = 0;
+    for (const row of agg) {
+      const ward = row._id.ward || 'unknown';
+      const incidents = row.list || [];
+      for (const it of incidents) {
+        if (it.resolvedAt) {
+          totalRepairSeconds += Math.max(0, (new Date(it.resolvedAt) - new Date(it.openedAt)) / 1000);
+          repairCount += 1;
+        }
+      }
+      if (incidents.length > 2) repeatFaultDevices += 1;
+      const secondsDown = incidents.reduce((acc, it) => {
+        if (!it.resolvedAt) return acc;
+        return acc + Math.max(0, (new Date(it.resolvedAt) - new Date(it.openedAt)) / 1000);
+      }, 0);
+      const totalSeconds = 30 * 24 * 3600;
+      const uptimePct = Math.max(0, Math.min(100, 100 * (1 - (secondsDown / totalSeconds))));
+      wardUptime.set(ward, uptimePct);
+    }
+
+    const mttrHours = repairCount ? (totalRepairSeconds / repairCount) / 3600 : 0;
+    const uptimeByWard = Array.from(wardUptime.entries()).map(([ward, uptime]) => ({ ward, uptime: Number(uptime.toFixed(3)) }));
+
+    res.json({ uptimeByWard, mttrHours: Number(mttrHours.toFixed(2)), repeatFaultDevices });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).send('Server Error');
+  }
+});
