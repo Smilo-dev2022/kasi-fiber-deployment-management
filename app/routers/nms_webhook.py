@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from app.core.deps import get_db
-from app.models.incident import Incident
+from app.core.rate_limit import rate_limit
+from app.models.incident import Incident, MaintWindow
 from app.models.device import Device
 
 
@@ -46,7 +47,46 @@ def _dedup_recent(db: Session, nms_ref: str, category: str, device_id):
     return existing
 
 
-@router.post("/librenms")
+def _is_suppressed(db: Session, device: Device | None) -> bool:
+    now = datetime.now(timezone.utc)
+    # Global window
+    gw = (
+        db.query(MaintWindow)
+        .filter(MaintWindow.scope == "Global")
+        .filter(MaintWindow.start_at <= now)
+        .filter(MaintWindow.end_at >= now)
+        .first()
+    )
+    if gw:
+        return True
+    # Device window
+    if device:
+        dw = (
+            db.query(MaintWindow)
+            .filter(MaintWindow.scope == "Device")
+            .filter(MaintWindow.target_id == device.id)
+            .filter(MaintWindow.start_at <= now)
+            .filter(MaintWindow.end_at >= now)
+            .first()
+        )
+        if dw:
+            return True
+        # PON window
+        if device.pon_id:
+            pw = (
+                db.query(MaintWindow)
+                .filter(MaintWindow.scope == "PON")
+                .filter(MaintWindow.target_id == device.pon_id)
+                .filter(MaintWindow.start_at <= now)
+                .filter(MaintWindow.end_at >= now)
+                .first()
+            )
+            if pw:
+                return True
+    return False
+
+
+@router.post("/librenms", dependencies=[Depends(rate_limit("webhook:librenms", 60, 60))])
 async def librenms(request: Request, db: Session = Depends(get_db)):
     _verify_source(request)
     raw = await request.body()
@@ -68,6 +108,8 @@ async def librenms(request: Request, db: Session = Depends(get_db)):
     title = f"{host} {rule} {state}"
 
     nms_ref = f"librenms:{alert_id}"
+    if _is_suppressed(db, device):
+        return {"ok": True, "suppressed": True, "reason": "maintenance window"}
     existing = _dedup_recent(db, nms_ref, category, device.id if device else None)
     if existing:
         return {"ok": True, "incident_id": str(existing.id), "dedup": True}
@@ -90,7 +132,7 @@ async def librenms(request: Request, db: Session = Depends(get_db)):
 
 # Zabbix webhook
 # Expect { "host": "OLT-01", "severity": "Disaster|High|Average|Warning|Info", "event_id": "123", "problem": true, "name": "Link down", "message": "..." }
-@router.post("/zabbix")
+@router.post("/zabbix", dependencies=[Depends(rate_limit("webhook:zabbix", 60, 60))])
 async def zabbix(request: Request, db: Session = Depends(get_db)):
     _verify_source(request)
     raw = await request.body()
@@ -110,6 +152,8 @@ async def zabbix(request: Request, db: Session = Depends(get_db)):
     severity_map = {"Disaster": "P1", "High": "P2", "Average": "P3", "Warning": "P3", "Info": "P4"}
     nms_ref = f"zabbix:{event_id}"
     if problem:
+        if _is_suppressed(db, device):
+            return {"ok": True, "suppressed": True, "reason": "maintenance window"}
         existing = _dedup_recent(db, nms_ref, "Device", device.id if device else None)
         if existing:
             return {"ok": True, "incident_id": str(existing.id), "dedup": True}

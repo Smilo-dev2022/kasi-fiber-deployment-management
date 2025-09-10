@@ -1,181 +1,101 @@
 # FIBER PON Tracker App
 
-A comprehensive web application for training and tracking Project Managers and Site Managers on FiberTime sites. The app tracks PONs (Passive Optical Networks), tasks, CAC checks, stringing, photos, SMMEs, stock, and invoicing with evidence enforcement and auto-status computation.
+A comprehensive web application for training and tracking Project Managers and Site Managers on FiberTime sites. The platform tracks PONs (Passive Optical Networks), tasks, Certificate Acceptance (formerly CAC), stringing, photos, SMMEs, stock, invoicing, and more — with evidence enforcement, geofencing, SLA monitoring, and automated status computation.
 
-## Features
+## What’s New (Upgrades)
 
-- **User Management**: Authentication for Project Managers and Site Managers
-- **PON Tracking**: Complete PON lifecycle management with progress tracking
-- **Task Management**: Task assignment, tracking, and status management
-- **Evidence Enforcement**: Photo upload requirements for task completion
-- **Auto-Status Computation**: Automatic progress calculation based on task completion
-- **Report Export**: CSV export functionality for PON and task data
-- **Dashboard**: Real-time statistics and overview
-- **Role-based Access**: Different permissions for different user roles
+- **Core API added**: FastAPI service (`app/`) with PostgreSQL, SQLAlchemy, and Alembic
+- **Infra stack**: Postgres (PostGIS), Redis, MinIO (S3-compatible), Mailhog via `infra/docker-compose.yml`
+- **Health checks**: FastAPI exposes `/healthz` and `/readyz`
+- **CORS**: Configurable allowlist via `CORS_ALLOW_ORIGINS`
+- **S3 integration**: Photo bytes stored via `boto3` with S3-compatible endpoints (`app/services/s3.py`)
+- **Background jobs**: APScheduler jobs for SLA scan, photo revalidation, weekly report (`app/scheduler.py`)
+- **Renamed CAC**: CAC → Certificate Acceptance (see `alembic/versions/0010_cac_to_certificate_acceptance.py` and `app/routers/certificate_acceptance.py`)
+- **Domain expansion**: Organizations, contracts, assignments, incidents, devices, optical tests (OTDR/LSPM), work queue, topology, maintenance, spares, rate cards, pay sheets, reports
+- **Legacy Node API retained**: Express + MongoDB service (`server/`) with SLA email monitor and existing routes; CRA client continues to proxy to `:5000`
 
 ## Technology Stack
 
-- **Backend**: Node.js with Express.js
-- **Frontend**: React.js with Material-UI
-- **Database**: MongoDB (configurable)
-- **Authentication**: JWT tokens
-- **File Upload**: Multer for photo evidence
-- **Styling**: Material-UI components
+- **Core API**: Python 3.x, FastAPI, SQLAlchemy, Alembic, APScheduler
+- **Legacy API**: Node.js (Express), Mongoose, Nodemailer
+- **Frontend**: React (CRA) + MUI
+- **Datastores**: PostgreSQL (PostGIS), Redis, MongoDB (legacy)
+- **Object storage**: S3-compatible (MinIO for local dev)
+- **Email**: SMTP via Mailhog (local) or provider via env
 
-## Project Structure
+## Architecture & Project Structure
 
 ```
-├── server/                    # Backend API
-│   ├── config/               # Database configuration
-│   ├── models/               # MongoDB models
-│   ├── routes/               # API routes
-│   ├── middleware/           # Authentication middleware
-│   └── index.js              # Server entry point
-├── client/                   # React frontend
-│   ├── src/
-│   │   ├── components/       # React components
-│   │   ├── contexts/         # React contexts
-│   │   └── App.js            # Main app component
-│   └── public/               # Static files
-└── uploads/                  # Photo uploads directory
+├── app/                      # FastAPI service (core)
+│   ├── main.py               # FastAPI entrypoint (/healthz, /readyz)
+│   ├── core/                 # DB deps, rate limiting, etc.
+│   ├── routers/              # Modular routers (tasks, incidents, optics, etc.)
+│   ├── services/             # Integrations (e.g., S3)
+│   ├── scheduler.py          # APScheduler jobs
+│   └── schemas/models/...    # Pydantic & SQLAlchemy
+├── alembic/                  # Database migrations
+├── infra/docker-compose.yml  # Postgres, Redis, MinIO, Mailhog
+├── server/                   # Legacy Express API
+│   ├── index.js              # Express entrypoint (:5000)
+│   ├── jobs/slaMonitor.js    # SLA email monitor
+│   └── utils/mailer.js       # SMTP transport
+├── client/                   # React frontend (CRA)
+└── requirements.txt          # Core API Python deps
 ```
 
-## Installation & Setup
+## Quickstart (Local Development)
 
-### Prerequisites
-- Node.js (v14 or higher)
-- MongoDB (local or cloud instance)
-- npm or yarn
-
-### Backend Setup
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-2. Create environment file:
-   ```bash
-   cp .env.example .env
-   ```
-
-3. Configure environment variables in `.env`:
-   - `MONGODB_URI`: Your MongoDB connection string
-   - `JWT_SECRET`: Secret key for JWT tokens
-   - `PORT`: Server port (default: 5000)
-
-4. Start the server:
-   ```bash
-   npm start
-   # or for development with auto-reload:
-   npm run server
-   ```
-
-### Frontend Setup
-1. Navigate to client directory:
-   ```bash
-   cd client
-   npm install
-   ```
-
-2. Start the React development server:
-   ```bash
-   npm start
-   ```
-
-### Full Development Mode
-Run both backend and frontend simultaneously:
+### 1) Start infrastructure (Postgres, Redis, MinIO, Mailhog)
 ```bash
-npm run dev
+docker compose -f infra/docker-compose.yml up -d
 ```
 
-## API Endpoints
+- **Postgres**: localhost:5432 (user: `app`, pass: `app`, db: `app`)
+- **Redis**: localhost:6379
+- **MinIO**: `http://localhost:9000` (console `http://localhost:9001`) — user: `minio`, pass: `minio12345`
+- **Mailhog**: SMTP `localhost:1025`, UI `http://localhost:8025`
 
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - User login
-- `GET /api/auth/user` - Get current user
-
-### PON Management
-- `GET /api/pons` - Get PONs (filtered by user role)
-- `POST /api/pons` - Create new PON
-- `PUT /api/pons/:id` - Update PON
-- `GET /api/pons/:id` - Get PON details
-- `PUT /api/pons/:id/progress` - Update PON progress
-
-### Task Management
-- `GET /api/tasks` - Get tasks (filtered by user role)
-- `POST /api/tasks` - Create new task
-- `PUT /api/tasks/:id/status` - Update task status
-
-### Photo Evidence
-- `POST /api/photos/upload/:taskId` - Upload photo evidence
-- `GET /api/photos/task/:taskId` - Get task photos
-
-### Reports
-- `GET /api/reports/dashboard` - Dashboard statistics
-- `GET /api/reports/pons` - PON report data
-- `GET /api/reports/export/pons` - Export PON data as CSV
-
-## User Roles
-
-### Project Manager
-- Create and manage PONs
-- Assign tasks to Site Managers
-- View all PONs under their management
-- Access reports and analytics
-
-### Site Manager
-- View assigned PONs and tasks
-- Update task status
-- Upload photo evidence
-- Complete tasks with evidence requirements
-
-## Usage
-
-### Getting Started
-1. Register a new account (Project Manager or Site Manager)
-2. Project Managers can create PONs and assign tasks
-3. Site Managers can view and complete assigned tasks
-4. Upload photo evidence for tasks that require it
-5. Monitor progress through the dashboard
-6. Export reports for documentation
-
-### Photo Evidence
-- Tasks can require photo evidence for completion
-- Photos are automatically linked to tasks
-- Tasks with evidence requirements cannot be marked complete without photos
-- Evidence tracking helps ensure quality control
-
-### Auto-Status Computation
-- PON progress is automatically calculated based on task completion
-- PON status updates automatically (planned → in_progress → completed)
-- Real-time dashboard updates reflect current progress
-
-## Development
-
-### Adding New Features
-1. Create database models in `server/models/`
-2. Add API routes in `server/routes/`
-3. Create React components in `client/src/components/`
-4. Update navigation and routing as needed
-
-### Testing
-- Backend: Test API endpoints using tools like Postman
-- Frontend: Use browser developer tools and React Developer Tools
-- Build: Run `npm run build` to test production build
-
-## Deployment
-
-### Production Build
+### 2) Run Core API (FastAPI)
 ```bash
-# Build client
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+export DATABASE_URL="postgresql+psycopg2://app:app@localhost:5432/app"
+export CORS_ALLOW_ORIGINS="http://localhost:3000"
+export S3_ENDPOINT="http://localhost:9000"
+export S3_REGION="us-east-1"
+export S3_BUCKET="fiber-photos"
+export S3_ACCESS_KEY="minio"
+export S3_SECRET_KEY="minio12345"
+
+uvicorn app.main:app --reload --port 8000
+```
+
+Run DB migrations (Alembic):
+```bash
+alembic upgrade head
+```
+
+### 3) Run Legacy API (Express)
+```bash
+npm install
+export MONGODB_URI="mongodb://localhost:27017/kasi_fiber_db"  # or your URI
+export SMTP_HOST=localhost SMTP_PORT=1025 SMTP_USER=foo SMTP_PASS=bar MAIL_FROM="no-reply@kasi-fiber.local"
+npm run server
+```
+
+The SLA monitor runs in-process; configure with:
+- `DISABLE_SLA_MONITOR=true` to turn off
+- `SLA_MONITOR_INTERVAL_MS=60000` to set interval
+
+### 4) Run Frontend (CRA)
+```bash
 cd client
-npm run build
-
-# The built files will be served by the Express server
-cd ..
+npm install
 npm start
 ```
+
+The client proxies API calls to `http://localhost:5000` (Express). If you consume the FastAPI directly, point requests to `http://localhost:8000`.
 
 ### Environment Variables
 Ensure production environment variables are set:
@@ -205,28 +125,47 @@ export $(cat .env.staging | xargs) && python scripts/setup_minio.py
 - `MONGODB_URI` (production database)
 - `JWT_SECRET` (strong secret key)
 
-## Future Enhancements
+## Configuration & Environment
 
-Planned features for upcoming releases:
-- [ ] CAC (Central Access Control) checks module
-- [ ] Stringing operations tracking
-- [ ] SMME (Small, Medium & Micro Enterprises) management
-- [ ] Stock management system
-- [ ] Invoicing system
-- [ ] Advanced reporting with charts
-- [ ] Mobile app support
-- [ ] Real-time notifications
-- [ ] GPS integration for location tracking
-- [ ] Advanced photo organization and tagging
+Key environment variables (see also `docs/secrets.md`):
+
+- Core API (FastAPI)
+  - `DATABASE_URL` (e.g., `postgresql+psycopg2://app:app@localhost:5432/app`)
+  - `CORS_ALLOW_ORIGINS` (comma-separated list or `*`)
+  - `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`
+
+- Legacy API (Express)
+  - `MONGODB_URI`, `JWT_SECRET`, `PORT` (default 5000)
+  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`
+  - `DISABLE_SLA_MONITOR`, `SLA_MONITOR_INTERVAL_MS`
+
+- Local infra defaults come from `infra/docker-compose.yml`.
+
+## Major Routers (Core API)
+
+- `tasks`, `certificate_acceptance`, `pons_geofence`, `photos_validate`, `assets`, `reports`, `rate_cards`, `pay_sheets`, `contracts`, `assignments`, `photos_upload_hook`, `devices`, `incidents`, `optical` (OTDR/LSPM), `closures`, `trays`, `splices`, `tests_plans`, `work_queue`, `topology`, `maintenance`, `configs`, `spares`
+- Health: `GET /healthz`, `GET /readyz`
+
+## Notes on Migration
+
+- The project is in a transition phase towards the FastAPI + Postgres core. The Express + MongoDB API remains for compatibility and selected workflows (including existing CRA proxy and SLA email monitor). New domain modules are implemented in the FastAPI service.
+
+## Building & Deployment
+
+- Frontend production build: `cd client && npm run build` (can be served by Express in production or a CDN)
+- Core API: deploy `uvicorn app.main:app` behind your preferred ASGI server/reverse proxy
+- Database migrations: `alembic upgrade head`
+- Object storage: use an S3-compatible provider; configure via env
+- Email delivery: configure SMTP provider (Mailhog for local)
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
+3. Make your edits
 4. Test thoroughly
 5. Submit a pull request
 
 ## License
 
-MIT License - see LICENSE file for details
+MIT License — see `LICENSE` for details
