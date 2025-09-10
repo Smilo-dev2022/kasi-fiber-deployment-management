@@ -81,6 +81,32 @@ def generate(payload: GenIn, db: Session = Depends(get_db)):
         return {"ok": True, "pay_sheet_id": ps_id, "lines": 0}
 
     total = sum(r["amount_cents"] for r in rows)
+    # CAC and technical test gating: disallow if any required tests failed or missing
+    # Block if there exists a CAC check with passed=false in period for the SMME
+    bad_cac = db.execute(text("""
+        select 1 from cac_checks c
+        join tasks t on t.pon_id = c.pon_id
+        where c.passed = false and date(c.checked_at) between :s and :e limit 1
+    """), {"s": payload.period_start, "e": payload.period_end}).first()
+    if bad_cac:
+        raise HTTPException(400, "CAC gates failing; cannot generate pay sheet")
+    # Block if any test plans require OTDR/LSPM and latest result for the plan is missing or failed in the period
+    missing_or_failed = db.execute(text("""
+        select 1
+        from test_plans tp
+        where exists (
+          select 1 where tp.otdr_required and not exists (
+            select 1 from otdr_results orr where orr.test_plan_id = tp.id and orr.passed = true and date(orr.tested_at) <= :e
+          )
+        ) or exists (
+          select 1 where tp.lspm_required and not exists (
+            select 1 from lspm_results l where l.test_plan_id = tp.id and l.passed = true and date(l.tested_at) <= :e
+          )
+        )
+        limit 1
+    """), {"e": payload.period_end}).first()
+    if missing_or_failed:
+        raise HTTPException(400, "Technical test gates failing; cannot generate pay sheet")
     ps_id = str(uuid4())
     db.execute(
         text(

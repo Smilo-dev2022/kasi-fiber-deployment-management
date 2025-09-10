@@ -3,12 +3,14 @@ from datetime import datetime, timezone
 from sqlalchemy import text
 
 from app.core.deps import SessionLocal
+import logging
 
 
 sched = BackgroundScheduler(timezone="Africa/Johannesburg")
 
 
 def job_sla_scan():
+    logging.info("job_sla_scan: start")
     with SessionLocal() as db:
         now = datetime.now(timezone.utc)
         db.execute(
@@ -33,19 +35,24 @@ def job_sla_scan():
             {"now": now},
         )
         db.commit()
+    logging.info("job_sla_scan: done")
 
 
 def job_photo_revalidate():
+    logging.info("job_photo_revalidate: start")
     with SessionLocal() as db:
         db.execute(text("""
             update photos set exif_ok = exif_ok where taken_ts is not null
         """))
         db.commit()
+    logging.info("job_photo_revalidate: done")
 
 
 def job_weekly_report():
+    logging.info("job_weekly_report: start")
     with SessionLocal() as db:
         db.execute(text("select 1"))
+    logging.info("job_weekly_report: done")
 
 
 def init_jobs():

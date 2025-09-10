@@ -2,6 +2,10 @@ import os
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.errors import RateLimitExceeded
+from fastapi.responses import JSONResponse
+from slowapi.middleware import SlowAPIMiddleware
+from app.core.limits import limiter, rate_limit_handler
 
 from app.routers import tasks as tasks_router
 from app.routers import cac as cac_router
@@ -25,7 +29,9 @@ from app.routers import tests_plans as plans_router
 from app.routers import tests_otdr as otdr_router
 from app.routers import tests_lspm as lspm_router
 from app.routers import work_queue as workq_router
-from app.scheduler import init_jobs
+from app.scheduler import init_jobs, sched
+from app.routers import photos_upload as photos_upload_api
+from app.routers import jobs as jobs_router
 
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -43,6 +49,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
+app.add_middleware(SlowAPIMiddleware)
+
 app.include_router(tasks_router.router)
 app.include_router(cac_router.router)
 app.include_router(pons_geo_router.router)
@@ -54,6 +65,7 @@ app.include_router(pays_router.router)
 app.include_router(contracts_router.router)
 app.include_router(assignments_router.router)
 app.include_router(photos_upload_router.router)
+app.include_router(photos_upload_api.router)
 app.include_router(devices_router.router)
 app.include_router(incidents_router.router)
 app.include_router(optical_router.router)
@@ -65,6 +77,7 @@ app.include_router(otdr_router.router)
 app.include_router(lspm_router.router)
 app.include_router(nms_router.router)
 app.include_router(workq_router.router)
+app.include_router(jobs_router.router)
 
 init_jobs()
 

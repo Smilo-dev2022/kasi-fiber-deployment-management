@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from datetime import timedelta
 from pydantic import BaseModel
 from typing import Optional, List
-from app.core.deps import get_db, require_roles
+from app.core.deps import get_db, require_roles, get_claims
+from app.services.audit import write_audit
 from app.models.task import Task
 from app.models.orgs import Assignment
 
@@ -27,13 +28,17 @@ DEFAULT_SLA = {
 
 
 @router.patch("/{task_id}", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
-def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(get_db)):
+def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(get_db), claims: dict = Depends(get_claims)):
     from uuid import UUID
 
     task = db.get(Task, UUID(task_id))
     if not task:
         raise HTTPException(404, "Not found")
+    tenant_id = claims.get("tenant_id")
+    if tenant_id and str(getattr(task, 'tenant_id', '')) != tenant_id:
+        raise HTTPException(403, "Forbidden")
     data = payload.dict(exclude_unset=True)
+    before = {k: getattr(task, k) for k in ("status", "started_at", "completed_at", "sla_due_at", "breached")}
     for k, v in data.items():
         setattr(task, k, v)
     if "status" in data and data["status"] == "In Progress":
@@ -44,6 +49,9 @@ def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(get_d
     if "status" in data and data["status"] == "Done" and task.sla_due_at and task.completed_at:
         task.breached = task.completed_at > task.sla_due_at
     db.commit()
+    after = {k: getattr(task, k) for k in ("status", "started_at", "completed_at", "sla_due_at", "breached")}
+    write_audit(db, entity_type="task", entity_id=task.id, action="update", by=str(claims.get("sub","")), before=before, after=after)
+    db.commit()
     return {"ok": True, "breached": task.breached, "sla_due_at": task.sla_due_at}
 
 
@@ -53,14 +61,18 @@ class WorkItem(BaseModel):
     step: Optional[str]
     status: Optional[str]
     sla_due_at: Optional[str]
+    type: str = "task"
 
 
 @router.get("/work-queue", response_model=List[WorkItem])
-def work_queue(db: Session = Depends(get_db), x_org_id: Optional[str] = Header(default=None, alias="X-Org-Id"), x_role: Optional[str] = Header(default=None, alias="X-Role")):
+def work_queue(db: Session = Depends(get_db), x_org_id: Optional[str] = Header(default=None, alias="X-Org-Id"), x_role: Optional[str] = Header(default=None, alias="X-Role"), claims: dict = Depends(get_claims)):
     if not x_org_id:
         raise HTTPException(400, "X-Org-Id required")
     # Filter tasks by assignments for the org
     q = db.query(Task)
+    tenant_id = claims.get("tenant_id")
+    if tenant_id and hasattr(Task, 'tenant_id'):
+        q = q.filter(Task.tenant_id == tenant_id)
     # If role is SalesAgent, return empty (isolation)
     if x_role == "SalesAgent":
         return []
@@ -83,6 +95,7 @@ def work_queue(db: Session = Depends(get_db), x_org_id: Optional[str] = Header(d
             step=t.step,
             status=t.status,
             sla_due_at=t.sla_due_at.isoformat() if t.sla_due_at else None,
+            type="task",
         )
         for t in rows
     ]

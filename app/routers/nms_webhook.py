@@ -8,6 +8,7 @@ from sqlalchemy import and_
 from app.core.deps import get_db
 from app.models.incident import Incident
 from app.models.device import Device
+from app.core.limits import limiter
 
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -47,6 +48,7 @@ def _dedup_recent(db: Session, nms_ref: str, category: str, device_id):
 
 
 @router.post("/librenms")
+@limiter.limit("30/minute")
 async def librenms(request: Request, db: Session = Depends(get_db)):
     _verify_source(request)
     raw = await request.body()
@@ -89,6 +91,7 @@ async def librenms(request: Request, db: Session = Depends(get_db)):
 # Zabbix webhook
 # Expect { "host": "OLT-01", "severity": "Disaster|High|Average|Warning|Info", "event_id": "123", "problem": true, "name": "Link down", "message": "..." }
 @router.post("/zabbix")
+@limiter.limit("30/minute")
 async def zabbix(request: Request, db: Session = Depends(get_db)):
     _verify_source(request)
     raw = await request.body()
