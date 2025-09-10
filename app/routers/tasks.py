@@ -6,6 +6,7 @@ from typing import Optional, List
 from app.core.deps import get_db, require_roles
 from app.models.task import Task
 from app.models.orgs import Assignment
+from sqlalchemy import text
 
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -36,6 +37,23 @@ def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(get_d
     data = payload.dict(exclude_unset=True)
     for k, v in data.items():
         setattr(task, k, v)
+    # Guard: Block Done without required tags + EXIF + GPS
+    if "status" in data and data["status"] == "Done":
+        req = db.execute(text("select name from photo_tags where required_for_step=:st"), {"st": task.step}).scalars().all()
+        if req:
+            ok = db.execute(
+                text(
+                    """
+          select count(1) from photos ph
+          join photo_tag_links l on l.photo_id=ph.id
+          join photo_tags t on t.id=l.tag_id
+          where ph.pon_id=:p and t.name = any(:req) and ph.exif_ok=true and ph.within_geofence=true
+        """
+                ),
+                {"p": str(task.pon_id), "req": req},
+            ).scalar_one()
+            if ok < len(req):
+                raise HTTPException(status_code=400, detail="Required photo tags missing or invalid")
     if "status" in data and data["status"] == "In Progress":
         mins = task.sla_minutes or DEFAULT_SLA.get(task.step, 24 * 60)
         task.sla_minutes = mins
