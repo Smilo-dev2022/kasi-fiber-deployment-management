@@ -72,8 +72,33 @@ const TaskSchema = new mongoose.Schema({
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
+    },
+    exif: {
+      make: String,
+      model: String,
+      datetimeOriginal: Date
+    },
+    gps: {
+      latitude: Number,
+      longitude: Number,
+      altitude: Number,
+      accuracyMeters: Number
+    },
+    validations: {
+      exifPresent: Boolean,
+      timeValid: Boolean,
+      geofenceValid: Boolean,
+      errors: [String]
     }
   }],
+  lastPhotoGps: {
+    latitude: Number,
+    longitude: Number,
+    timestamp: Date
+  },
+  sla: {
+    lastBreachEmailAt: Date
+  },
   notes: String,
   dependencies: [{
     type: mongoose.Schema.Types.ObjectId,

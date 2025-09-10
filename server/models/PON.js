@@ -21,6 +21,16 @@ const PONSchema = new mongoose.Schema({
     latitude: Number,
     longitude: Number
   },
+  geofence: {
+    center: {
+      latitude: Number,
+      longitude: Number
+    },
+    radiusMeters: {
+      type: Number,
+      default: 300
+    }
+  },
   status: {
     type: String,
     enum: ['planned', 'in_progress', 'testing', 'completed', 'maintenance'],
