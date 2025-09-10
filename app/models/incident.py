@@ -26,3 +26,14 @@ class Incident(Base):
     severity_sla_minutes = Column(Integer, nullable=True)
     due_at = Column(DateTime(timezone=True), nullable=True)
 
+
+class MaintWindow(Base):
+    __tablename__ = "maint_windows"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    scope = Column(String, nullable=False)
+    target_id = Column(UUID(as_uuid=True), nullable=True)
+    start_at = Column(DateTime(timezone=True), nullable=False)
+    end_at = Column(DateTime(timezone=True), nullable=False)
+    approved_by = Column(String, nullable=True)
+
