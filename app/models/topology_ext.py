@@ -38,3 +38,23 @@ class CableRegister(Base):
     polyline = Column(String, nullable=True)
     length_m = Column(Numeric(), nullable=True)
 
+
+class TopoNode(Base):
+    __tablename__ = "topo_nodes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    type = Column(String, nullable=False)
+    code = Column(String, nullable=False)
+    pon_id = Column(UUID(as_uuid=True), ForeignKey("pons.id", ondelete="CASCADE"), nullable=False)
+    gps_lat = Column(Numeric(9, 6), nullable=True)
+    gps_lng = Column(Numeric(9, 6), nullable=True)
+
+
+class TopoEdge(Base):
+    __tablename__ = "topo_edges"
+
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    a_id = Column(UUID(as_uuid=True), ForeignKey("topo_nodes.id", ondelete="CASCADE"), nullable=False)
+    b_id = Column(UUID(as_uuid=True), ForeignKey("topo_nodes.id", ondelete="CASCADE"), nullable=False)
+    cable_code = Column(String, nullable=True)
+    length_m = Column(Numeric(), nullable=True)

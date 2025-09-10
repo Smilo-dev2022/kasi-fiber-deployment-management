@@ -25,6 +25,10 @@ from app.routers import tests_plans as plans_router
 from app.routers import tests_otdr as otdr_router
 from app.routers import tests_lspm as lspm_router
 from app.routers import work_queue as workq_router
+from app.routers import topology as topo_router
+from app.routers import maintenance as maint_router
+from app.routers import configs as configs_router
+from app.routers import spares as spares_router
 from app.scheduler import init_jobs
 
 
@@ -65,6 +69,10 @@ app.include_router(otdr_router.router)
 app.include_router(lspm_router.router)
 app.include_router(nms_router.router)
 app.include_router(workq_router.router)
+app.include_router(topo_router.router)
+app.include_router(maint_router.router)
+app.include_router(configs_router.router)
+app.include_router(spares_router.router)
 
 init_jobs()
 
