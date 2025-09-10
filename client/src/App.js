@@ -10,6 +10,7 @@ import PONList from './components/PON/PONList';
 import PONDetail from './components/PON/PONDetail';
 import TaskList from './components/Tasks/TaskList';
 import Reports from './components/Reports/Reports';
+import SAMap from './components/Map/SAMap';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import './App.css';
 
@@ -64,6 +65,13 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Reports />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/map" element={
+              <ProtectedRoute>
+                <Layout>
+                  <SAMap />
                 </Layout>
               </ProtectedRoute>
             } />
