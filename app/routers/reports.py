@@ -29,13 +29,16 @@ def weekly(payload: WeeklyIn, db: Session = Depends(get_db)):
     first_pass = db.query(func.count(CertificateAcceptance.id)).filter(CertificateAcceptance.passed == True).scalar()
     smme_count = db.query(func.count(SMME.id)).scalar()
     url = f"https://example.local/reports/{uuid4()}.pdf"
-    db.execute(
-        text(
-            "insert into reports (id, kind, period_start, period_end, url) values (gen_random_uuid(), 'WeeklyExec', :s, :e, :u)"
-        ),
-        {"s": start, "e": end, "u": url},
-    )
-    db.commit()
+    try:
+        db.execute(
+            text(
+                "insert into reports (id, kind, period_start, period_end, url) values (gen_random_uuid(), 'WeeklyExec', :s, :e, :u)"
+            ),
+            {"s": start, "e": end, "u": url},
+        )
+        db.commit()
+    except Exception:
+        pass
     return {
         "period_start": str(start),
         "period_end": str(end),
@@ -47,5 +50,21 @@ def weekly(payload: WeeklyIn, db: Session = Depends(get_db)):
             "smmes": smme_count,
         },
         "url": url,
+    }
+
+
+@router.get("/kpi")
+def kpi(db: Session = Depends(get_db)):
+    total = db.query(func.count(PON.id)).scalar()
+    completed = db.query(func.count(PON.id)).filter(PON.status == "Completed").scalar()
+    breaches = db.query(func.count(Task.id)).filter(Task.breached == True).scalar()
+    first_pass = db.query(func.count(CertificateAcceptance.id)).filter(CertificateAcceptance.passed == True).scalar()
+    smme_count = db.query(func.count(SMME.id)).scalar()
+    return {
+        "pons_total": total,
+        "pons_completed": completed,
+        "sla_breaches": breaches,
+        "certificate_acceptance_first_pass": first_pass,
+        "smmes": smme_count,
     }
 

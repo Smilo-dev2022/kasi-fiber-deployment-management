@@ -39,3 +39,18 @@ def put_bytes(key: str, content_type: str, data: bytes) -> str:
     s3.put_object(Bucket=settings.S3_BUCKET, Key=key, Body=data, ContentType=content_type)
     return f"{settings.S3_ENDPOINT}/{settings.S3_BUCKET}/{key}".replace("http://", "https://")
 
+
+def create_presigned_put_url(key: str, content_type: str, expires_seconds: int = 300) -> str:
+    client = get_client()
+    return client.generate_presigned_url(
+        "put_object",
+        Params={"Bucket": settings.S3_BUCKET, "Key": key, "ContentType": content_type},
+        ExpiresIn=expires_seconds,
+        HttpMethod="PUT",
+    )
+
+
+def head_object(key: str) -> dict:
+    client = get_client()
+    return client.head_object(Bucket=settings.S3_BUCKET, Key=key)
+

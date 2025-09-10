@@ -1,6 +1,9 @@
 import os
 import logging
-from fastapi import FastAPI
+import os as _os
+from uuid import uuid4
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import tasks as tasks_router
@@ -30,14 +33,27 @@ from app.routers import maintenance as maint_router
 from app.routers import configs as configs_router
 from app.routers import spares as spares_router
 from app.scheduler import init_jobs
+from app.routers import reports as reports_router
+from app.routers import invoices as invoices_router
+from app.routers import metrics as metrics_router
+from app.routers.security_upload_middleware import enforce_upload_limits
 
 
-logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+logging.basicConfig(level=_os.getenv("LOG_LEVEL", "INFO"))
 
 app = FastAPI()
 
+# Sentry initialization (optional)
+try:
+    import sentry_sdk
+
+    if _os.getenv("SENTRY_DSN"):
+        sentry_sdk.init(dsn=_os.getenv("SENTRY_DSN"), environment=_os.getenv("ENVIRONMENT", "local"))
+except Exception:
+    pass
+
 # CORS allowlist
-origins_env = os.getenv("CORS_ALLOW_ORIGINS", "*")
+origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "*")
 allow_origins = [o.strip() for o in origins_env.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
@@ -47,12 +63,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Request ID middleware and basic context logging
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    req_id = request.headers.get("X-Request-Id") or str(uuid4())
+    request.state.request_id = req_id
+    response = None
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        logging.exception("Unhandled error for request_id=%s", req_id)
+        return JSONResponse(status_code=500, content={"error": "internal_error", "request_id": req_id})
+    if response is not None:
+        response.headers["X-Request-Id"] = req_id
+    return response
+
+
+@app.middleware("http")
+async def uploads_guard(request: Request, call_next):
+    return await enforce_upload_limits(request, call_next)
+
 app.include_router(tasks_router.router)
 app.include_router(certacc_router.router)
 app.include_router(pons_geo_router.router)
 app.include_router(photos_val_router.router)
 app.include_router(assets_router.router)
 app.include_router(reports_router.router)
+app.include_router(metrics_router.router)
+app.include_router(invoices_router.router)
 app.include_router(rate_router.router)
 app.include_router(pays_router.router)
 app.include_router(contracts_router.router)
@@ -84,6 +122,37 @@ def healthz():
 
 @app.get("/readyz")
 def readyz():
-    # If needed, extend with DB ping
+    # Real dependency checks: DB, Redis, S3
+    from sqlalchemy import text
+    from app.core.deps import SessionLocal
+    from app.services import s3 as s3_service
+
+    # DB check
+    try:
+        with SessionLocal() as db:
+            db.execute(text("select 1"))
+    except Exception as e:
+        return {"ready": False, "dependency": "db", "error": str(e)}, 503
+
+    # Redis check
+    try:
+        import os as _os
+        import redis as _redis
+
+        redis_url = _os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        r = _redis.from_url(redis_url)
+        if r.ping() is not True:
+            raise RuntimeError("redis ping failed")
+    except Exception as e:
+        return {"ready": False, "dependency": "redis", "error": str(e)}, 503
+
+    # S3 check
+    try:
+        s3 = s3_service.get_client()
+        bucket = s3_service.settings.S3_BUCKET
+        s3.list_objects_v2(Bucket=bucket, Prefix="test", MaxKeys=1)
+    except Exception as e:
+        return {"ready": False, "dependency": "s3", "error": str(e)}, 503
+
     return {"ready": True}
 

@@ -1,11 +1,22 @@
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.jobstores.redis import RedisJobStore
 from datetime import datetime, timezone
 from sqlalchemy import text
 
 from app.core.deps import SessionLocal
 
 
-sched = BackgroundScheduler(timezone="Africa/Johannesburg")
+import os
+
+jobstores = {}
+_redis_url = os.getenv("REDIS_URL")
+if _redis_url:
+    try:
+        jobstores["default"] = RedisJobStore.from_url(_redis_url)
+    except Exception:
+        jobstores = {}
+
+sched = BackgroundScheduler(timezone="Africa/Johannesburg", jobstores=jobstores if jobstores else None)
 
 
 def job_sla_scan():

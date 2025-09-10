@@ -28,7 +28,7 @@ def _verify_source(request: Request):
 def _verify_hmac(request: Request, body: bytes):
     secret = os.getenv("NMS_HMAC_SECRET")
     if not secret:
-        return
+        raise HTTPException(401, "Missing signature")
     sig = request.headers.get("X-Signature") or request.headers.get("X-Hub-Signature")
     if not sig:
         raise HTTPException(401, "Missing signature")

@@ -1,4 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
+import os
+import json
+try:
+    import redis
+except Exception:
+    redis = None
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
@@ -24,6 +30,16 @@ def work_queue(db: Session = Depends(get_db), x_org_id: Optional[str] = Header(d
         raise HTTPException(400, "X-Org-Id required")
     if x_role == "SalesAgent":
         return []
+    # Cache per org for 30 seconds
+    cache_key = f"workq:{x_org_id}"
+    if redis is not None:
+        try:
+            r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+            cached = r.get(cache_key)
+            if cached:
+                return [WorkItem(**item) for item in json.loads(cached)]
+        except Exception:
+            pass
     q = db.query(Task)
     assigned_steps = (
         db.query(Assignment.step_type)
@@ -35,7 +51,7 @@ def work_queue(db: Session = Depends(get_db), x_org_id: Optional[str] = Header(d
     if steps:
         q = q.filter(Task.step.in_(steps))
     rows = q.order_by(Task.sla_due_at.is_(None), Task.sla_due_at.asc()).all()
-    return [
+    items = [
         WorkItem(
             id=str(t.id),
             pon_id=str(t.pon_id) if t.pon_id else None,
@@ -45,4 +61,11 @@ def work_queue(db: Session = Depends(get_db), x_org_id: Optional[str] = Header(d
         )
         for t in rows
     ]
+    if redis is not None:
+        try:
+            r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+            r.setex(cache_key, 30, json.dumps([i.dict() for i in items]))
+        except Exception:
+            pass
+    return items
 

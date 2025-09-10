@@ -5,6 +5,7 @@ import re
 from uuid import uuid4
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Request, HTTPException
+import os
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.core.deps import get_db, require_roles
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/configs", tags=["configs"])
 def _verify_hmac(request: Request, body: bytes):
     secret = os.getenv("OXIDIZED_HMAC_SECRET")
     if not secret:
-        return
+        raise HTTPException(401, "Missing signature")
     sig = request.headers.get("X-Signature") or request.headers.get("X-Hub-Signature")
     if not sig:
         raise HTTPException(401, "Missing signature")
@@ -28,8 +29,18 @@ def _verify_hmac(request: Request, body: bytes):
         raise HTTPException(401, "Invalid signature")
 
 
+def _verify_source(request: Request):
+    allow_ips = os.getenv("CONFIGS_ALLOW_IPS", "").split(",")
+    allow_ips = [ip.strip() for ip in allow_ips if ip.strip()]
+    if allow_ips:
+        ip = request.client.host if request.client else None
+        if ip not in allow_ips:
+            raise HTTPException(403, "IP not allowed")
+
+
 @router.post("/oxidized", dependencies=[Depends(rate_limit("webhook:oxidized", 60, 60))])
 async def oxidized_webhook(request: Request, db: Session = Depends(get_db)):
+    _verify_source(request)
     raw = await request.body()
     _verify_hmac(request, raw)
     data = await request.json()

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
@@ -8,6 +9,8 @@ from app.core.deps import get_db, require_roles
 from app.models.photo import Photo
 from app.models.pon import PON
 from app.services.s3 import get_object_bytes
+from app.services.s3 import head_object
+from app.services.s3 import create_presigned_put_url
 from app.services.exif import parse_exif
 
 
@@ -36,7 +39,21 @@ def register(payload: RegisterIn, db: Session = Depends(get_db)):
     if not p:
         raise HTTPException(404, "Photo not found")
 
-    # Read from S3 and parse EXIF
+    # Validate object headers (size and content-type), then read from S3 and parse EXIF
+    try:
+        obj_hdr = head_object(payload.s3_key)
+        size = int(obj_hdr.get("ContentLength", 0))
+        ctype = obj_hdr.get("ContentType", "") or obj_hdr.get("ResponseMetadata", {}).get("HTTPHeaders", {}).get("content-type", "")
+        if size > 10 * 1024 * 1024:
+            raise HTTPException(400, "File too large (max 10 MB)")
+        if not str(ctype).startswith("image/"):
+            raise HTTPException(400, "Only image content types allowed")
+    except HTTPException:
+        raise
+    except Exception:
+        # Continue; some providers may not return headers as expected
+        pass
+
     blob = get_object_bytes(payload.s3_key)
     meta = parse_exif(blob)
 
@@ -72,4 +89,13 @@ def register(payload: RegisterIn, db: Session = Depends(get_db)):
     p.within_geofence = within
     db.commit()
     return {"ok": True, "exif_ok": exif_ok, "within_geofence": within}
+
+
+@router.get("/sign-upload", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "SMME"))])
+def sign_upload(key: str = Query(..., description="S3 key under fiber-photos bucket"), content_type: str = Query(...)):
+    # Enforce 10 MB max via client-provided size in subsequent Content-Length (S3 enforces on upload)
+    if not content_type.startswith("image/"):
+        raise HTTPException(400, "Only image content types allowed")
+    url = create_presigned_put_url(key, content_type, expires_seconds=300)
+    return {"url": url, "max_bytes": 10 * 1024 * 1024}
 
