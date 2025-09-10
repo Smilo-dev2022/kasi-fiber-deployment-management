@@ -31,7 +31,7 @@ from app.routers import configs as configs_router
 from app.routers import spares as spares_router
 from app.scheduler import init_jobs
 from app.core.health import router as health_router
-from app.core.limiter import limiter, key_by_ip
+from app.core.limiter import limiter, key_by_ip, key_by_org
 
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -54,12 +54,18 @@ app.include_router(certacc_router.router)
 app.include_router(pons_geo_router.router)
 app.include_router(photos_val_router.router)
 app.include_router(assets_router.router)
-app.include_router(reports_router.router)
+app.include_router(
+    reports_router.router,
+    dependencies=[limiter(limit=30, window_sec=60, key_fn=key_by_org)],
+)
 app.include_router(rate_router.router)
 app.include_router(pays_router.router)
 app.include_router(contracts_router.router)
 app.include_router(assignments_router.router)
-app.include_router(photos_upload_router.router)
+app.include_router(
+    photos_upload_router.router,
+    dependencies=[limiter(limit=120, window_sec=60, key_fn=key_by_org)],
+)
 app.include_router(devices_router.router)
 app.include_router(incidents_router.router)
 app.include_router(optical_router.router)
@@ -67,13 +73,22 @@ app.include_router(closures_router.router)
 app.include_router(trays_router.router)
 app.include_router(splices_router.router)
 app.include_router(plans_router.router)
-app.include_router(otdr_router.router)
-app.include_router(lspm_router.router)
+app.include_router(
+    otdr_router.router,
+    dependencies=[limiter(limit=120, window_sec=60, key_fn=key_by_org)],
+)
+app.include_router(
+    lspm_router.router,
+    dependencies=[limiter(limit=120, window_sec=60, key_fn=key_by_org)],
+)
 app.include_router(
     nms_router.router,
     dependencies=[limiter(limit=60, window_sec=60, key_fn=key_by_ip)],
 )
-app.include_router(workq_router.router)
+app.include_router(
+    workq_router.router,
+    dependencies=[limiter(limit=30, window_sec=60, key_fn=key_by_org)],
+)
 app.include_router(topo_router.router)
 app.include_router(maint_router.router)
 app.include_router(configs_router.router)
@@ -91,7 +106,12 @@ async def _log_jobs():
 
 @app.middleware("http")
 async def add_org_to_state(request: Request, call_next):
-    # set request.state.org_id if you decode it in your auth dependency
+    # Populate org_id from header until real auth sets it
+    try:
+        request.state.org_id = request.headers.get("X-Org-Id")
+    except Exception:
+        # Best-effort; do not block request
+        request.state.org_id = None
     return await call_next(request)
 
 
