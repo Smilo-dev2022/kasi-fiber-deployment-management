@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import Optional
-from app.core.deps import get_db, require_roles
+from app.core.deps import require_roles
+from app.routers import db_dep
 from app.models.cac import CACCheck
 
 
@@ -22,7 +23,7 @@ class CACIn(BaseModel):
 
 
 @router.post("", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
-def create_cac(payload: CACIn, db: Session = Depends(get_db)):
+def create_cac(payload: CACIn, db: Session = Depends(db_dep)):
     from uuid import UUID
 
     rec = CACCheck(

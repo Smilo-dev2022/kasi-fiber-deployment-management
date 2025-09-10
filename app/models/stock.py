@@ -15,6 +15,7 @@ def sa_insert_assets():
         "assets",
         metadata,
         Column("id", _UUID(as_uuid=True)),
+        Column("tenant_id", _UUID(as_uuid=True)),
         Column("type", _S),
         Column("code", _S),
         Column("sku", _S),

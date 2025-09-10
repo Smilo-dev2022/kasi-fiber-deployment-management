@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import date, timedelta
 from uuid import uuid4
-from app.core.deps import get_db, require_roles
+from app.core.deps import require_roles
+from app.routers import db_dep
 from app.models.pon import PON
 from app.models.task import Task
 from app.models.cac import CACCheck
@@ -20,7 +21,7 @@ class WeeklyIn(BaseModel):
 
 
 @router.post("/weekly", dependencies=[Depends(require_roles("ADMIN", "PM"))])
-def weekly(payload: WeeklyIn, db: Session = Depends(get_db)):
+def weekly(payload: WeeklyIn, db: Session = Depends(db_dep)):
     start = payload.start or (date.today() - timedelta(days=7))
     end = payload.end or date.today()
     total = db.query(func.count(PON.id)).scalar()

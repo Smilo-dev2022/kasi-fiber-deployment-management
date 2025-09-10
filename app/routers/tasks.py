@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from datetime import timedelta
 from pydantic import BaseModel
 from typing import Optional
-from app.core.deps import get_db, require_roles
+from app.core.deps import require_roles
+from app.routers import db_dep
 from app.models.task import Task
 
 
@@ -26,7 +27,7 @@ DEFAULT_SLA = {
 
 
 @router.patch("/{task_id}", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
-def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(get_db)):
+def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(db_dep)):
     from uuid import UUID
 
     task = db.get(Task, UUID(task_id))

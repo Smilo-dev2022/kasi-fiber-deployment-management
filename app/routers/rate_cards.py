@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Literal, Optional
-from app.core.deps import get_db, require_roles
+from app.core.deps import require_roles
+from app.routers import db_dep
 from app.models.smme import SMME
 
 
@@ -20,7 +21,7 @@ class RateIn(BaseModel):
 
 
 @router.post("", dependencies=[Depends(require_roles("ADMIN", "PM"))])
-def create_rate(payload: RateIn, db: Session = Depends(get_db)):
+def create_rate(payload: RateIn, db: Session = Depends(db_dep)):
     db.execute(
         """
         insert into rate_cards (id, smme_id, step, unit, rate_cents, active, valid_from, valid_to)

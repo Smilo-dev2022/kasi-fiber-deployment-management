@@ -1,3 +1,25 @@
+Multi-tenant & White-label Implementation
+---------------------------------------
+
+Key additions
+- Postgres RLS with per-request `app.tenant_id` setting
+- New models: `Tenant`, `TenantDomain`, `TenantTheme`, `FeatureFlag`, `AuditLog`, `MeteringCounter`, `TenantFileKey`
+- `tenant_id` added to existing tables and indexed
+- Tenant-aware DB dependency and middleware
+- Provisioning API: create tenant, add domains, update theme
+- Basic metering of API calls per tenant/month
+
+How tenant resolution works
+- Prefer `X-Tenant-Id` header; else map from `Host` via `tenant_domains`
+- Middleware stores `request.state.tenant_id` and DB dependency sets `app.tenant_id`
+- RLS policies enforce tenant isolation at the DB
+
+Next steps (not yet implemented)
+- Custom domain TLS automation and CNAME validation
+- Audit logging decorators and admin IP allow list
+- Signed upload URLs and S3 tenant prefixes
+- Stripe/Paystack products and webhooks
+- CLI bootstrap and demo tenant seeding
 # FIBER PON Tracker App - Implementation Summary
 
 ## 🎯 Project Goals Achieved

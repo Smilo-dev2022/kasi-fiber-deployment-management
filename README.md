@@ -153,6 +153,20 @@ npm run dev
 
 ## Development
 
+### Multi-tenant & White-label (FastAPI + Postgres)
+- Isolation enforced via PostgreSQL RLS using `app.tenant_id`
+- Resolve tenant via `X-Tenant-Id` header or mapped domain (`tenant_domains`)
+- Themes, feature flags, audit logs, metering counters per tenant
+
+Run DB migrations (requires Postgres):
+```bash
+alembic upgrade head
+```
+
+Headers to include on API requests:
+- `X-Tenant-Id: <tenant-uuid>`
+- `X-Role: ADMIN|PM|SITE|SMME`
+
 ### Adding New Features
 1. Create database models in `server/models/`
 2. Add API routes in `server/routes/`

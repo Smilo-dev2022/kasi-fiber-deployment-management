@@ -7,6 +7,7 @@ class Photo(Base):
     __tablename__ = "photos"
 
     id = Column(UUID(as_uuid=True), primary_key=True)
+    tenant_id = Column(UUID(as_uuid=True), nullable=False)
     pon_id = Column(UUID(as_uuid=True), ForeignKey("pons.id"), nullable=True)
     gps_lat = Column(Numeric(9, 6), nullable=True)
     gps_lng = Column(Numeric(9, 6), nullable=True)

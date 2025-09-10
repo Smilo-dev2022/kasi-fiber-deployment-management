@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime, timezone, timedelta
-from app.core.deps import get_db, require_roles
+from app.core.deps import require_roles
+from app.routers import db_dep
 from app.models.photo import Photo
 from app.models.pon import PON
 import math
@@ -26,7 +27,7 @@ def distance_m(a_lat, a_lng, b_lat, b_lng):
 
 
 @router.post("/validate", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "SMME"))])
-def validate_photo(payload: ValidateIn, db: Session = Depends(get_db)):
+def validate_photo(payload: ValidateIn, db: Session = Depends(db_dep)):
     from uuid import UUID
 
     p = db.get(Photo, UUID(payload.photo_id))

@@ -7,6 +7,7 @@ class CACCheck(Base):
     __tablename__ = "cac_checks"
 
     id = Column(UUID(as_uuid=True), primary_key=True)
+    tenant_id = Column(UUID(as_uuid=True), nullable=False)
     pon_id = Column(UUID(as_uuid=True), ForeignKey("pons.id"), nullable=False)
     pole_number = Column(String, nullable=True)
     pole_length_m = Column(Numeric(4, 2), nullable=False)

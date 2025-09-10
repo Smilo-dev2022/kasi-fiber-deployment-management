@@ -7,6 +7,7 @@ class Task(Base):
     __tablename__ = "tasks"
 
     id = Column(UUID(as_uuid=True), primary_key=True)
+    tenant_id = Column(UUID(as_uuid=True), nullable=False)
     pon_id = Column(UUID(as_uuid=True), ForeignKey("pons.id"), nullable=True)
     smmme_id = Column(UUID(as_uuid=True), ForeignKey("smmes.id"), nullable=True)  # note: name as referenced in SQL
     step = Column(String, nullable=True)

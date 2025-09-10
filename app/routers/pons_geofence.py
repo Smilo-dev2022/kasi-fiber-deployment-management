@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from app.core.deps import get_db, require_roles
+from app.core.deps import require_roles
+from app.routers import db_dep
 from app.models.pon import PON
 
 
@@ -15,7 +16,7 @@ class GeoIn(BaseModel):
 
 
 @router.post("/{pon_id}/geofence", dependencies=[Depends(require_roles("ADMIN", "PM"))])
-def set_geofence(pon_id: str, payload: GeoIn, db: Session = Depends(get_db)):
+def set_geofence(pon_id: str, payload: GeoIn, db: Session = Depends(db_dep)):
     from uuid import UUID
 
     pon = db.get(PON, UUID(pon_id))

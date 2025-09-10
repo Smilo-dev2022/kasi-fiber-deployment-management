@@ -5,7 +5,8 @@ from typing import Literal, Optional
 import uuid
 import qrcode
 import io
-from app.core.deps import get_db, require_roles
+from app.core.deps import require_roles
+from app.routers import db_dep
 from app.models import stock as mstock
 from app.models.pon import PON
 from sqlalchemy import select
@@ -31,7 +32,7 @@ class AssetScanIn(BaseModel):
 
 
 @router.post("", dependencies=[Depends(require_roles("ADMIN", "PM"))])
-def create_batch(payload: AssetBatchIn, db: Session = Depends(get_db)):
+def create_batch(payload: AssetBatchIn, db: Session = Depends(db_dep)):
     ids = []
     for _ in range(payload.count):
         code = str(uuid.uuid4()).split("-")[0].upper()
@@ -54,7 +55,7 @@ def qr_png(code: str):
 
 
 @router.post("/scan", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
-def scan(payload: AssetScanIn, db: Session = Depends(get_db)):
+def scan(payload: AssetScanIn, db: Session = Depends(db_dep)):
     from app.models import stock as stock_models
 
     Asset = stock_models.Asset  # placeholder for ORM class if created later
