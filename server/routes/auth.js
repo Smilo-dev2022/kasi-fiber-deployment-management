@@ -1,5 +1,5 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
+const { signJwt } = require('../utils/jwt');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
@@ -13,7 +13,7 @@ router.post('/register', [
   body('name', 'Name is required').not().isEmpty(),
   body('email', 'Please include a valid email').isEmail(),
   body('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 }),
-  body('role', 'Role must be specified').isIn(['project_manager', 'site_manager'])
+  body('role').optional().isIn(['project_manager', 'site_manager', 'admin'])
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -34,7 +34,7 @@ router.post('/register', [
       name,
       email,
       password,
-      role,
+      role: role || 'site_manager',
       phone
     });
 
@@ -48,23 +48,16 @@ router.post('/register', [
       }
     };
 
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET || 'fallback_secret',
-      { expiresIn: '24h' },
-      (err, token) => {
-        if (err) throw err;
-        res.json({ 
-          token,
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role
-          }
-        });
+    const token = signJwt(payload);
+    res.json({ 
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
       }
-    );
+    });
   } catch (error) {
     console.error(error.message);
     res.status(500).send('Server error');
@@ -115,24 +108,17 @@ router.post('/login', [
       }
     };
 
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET || 'fallback_secret',
-      { expiresIn: '24h' },
-      (err, token) => {
-        if (err) throw err;
-        res.json({ 
-          token,
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            lastLogin: user.lastLogin
-          }
-        });
+    const token = signJwt(payload);
+    res.json({ 
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        lastLogin: user.lastLogin
       }
-    );
+    });
   } catch (error) {
     console.error(error.message);
     res.status(500).send('Server error');

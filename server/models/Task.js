@@ -72,6 +72,12 @@ const TaskSchema = new mongoose.Schema({
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
+    },
+    exif: {
+      gpsLatitude: Number,
+      gpsLongitude: Number,
+      dateTimeOriginal: Date,
+      withinGeofence: Boolean
     }
   }],
   notes: String,
@@ -82,6 +88,18 @@ const TaskSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Breach flag for SLA
+TaskSchema.add({
+  breached: {
+    type: Boolean,
+    default: false
+  }
+});
+
+// Indexes for performance
+TaskSchema.index({ pon: 1, breached: 1 });
+TaskSchema.index({ assignedTo: 1, status: 1 });
 
 // Check if task can be started (dependencies completed)
 TaskSchema.methods.canStart = async function() {

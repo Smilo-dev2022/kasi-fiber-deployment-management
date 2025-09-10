@@ -71,10 +71,17 @@ const PONSchema = new mongoose.Schema({
     min: 0,
     max: 100,
     default: 0
+  },
+  ward: {
+    type: String,
+    trim: true
   }
 }, {
   timestamps: true
 });
+
+// Index for status and ward queries
+PONSchema.index({ status: 1, ward: 1 });
 
 // Auto-compute progress based on related tasks
 PONSchema.methods.updateProgress = async function() {

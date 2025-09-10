@@ -2,6 +2,8 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Task = require('../models/Task');
 const PON = require('../models/PON');
+const StateLog = require('../models/StateLog');
+const { isWithinRadiusMeters } = require('../utils/geo');
 const { auth, authorize } = require('../middleware/auth');
 
 const router = express.Router();
@@ -114,6 +116,15 @@ router.put('/:id/status', auth, async (req, res) => {
       return res.status(400).json({ message: 'Evidence photos required before marking as completed' });
     }
 
+    // Block CAC and Stringing completion if within_geofence is false (any evidence photo)
+    if (status === 'completed' && ['cac_check', 'stringing'].includes(task.type)) {
+      const invalid = task.evidencePhotos.some(p => p.exif && p.exif.withinGeofence === false);
+      if (invalid) {
+        return res.status(400).json({ message: 'Completion blocked: photo outside geofence' });
+      }
+    }
+
+    const before = task.toObject();
     task.status = status;
     if (status === 'completed') {
       task.completedDate = new Date();
@@ -134,6 +145,8 @@ router.put('/:id/status', auth, async (req, res) => {
       .populate('pon', 'ponId name location')
       .populate('assignedTo', 'name email')
       .populate('createdBy', 'name email');
+
+    await StateLog.create({ entityType: 'Task', entityId: task._id, before, after: updatedTask.toObject(), actor: req.user.id });
 
     res.json(updatedTask);
   } catch (error) {

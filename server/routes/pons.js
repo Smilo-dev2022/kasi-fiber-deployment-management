@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const PON = require('../models/PON');
 const Task = require('../models/Task');
+const StateLog = require('../models/StateLog');
 const { auth, authorize } = require('../middleware/auth');
 
 const router = express.Router();
@@ -46,10 +47,12 @@ router.get('/:id', auth, async (req, res) => {
     }
 
     // Check authorization
-    if (req.user.role === 'site_manager' && pon.siteManager?.toString() !== req.user.id) {
+    const siteManagerId = pon.siteManager?._id?.toString?.() || pon.siteManager?.toString?.();
+    const projectManagerId = pon.projectManager?._id?.toString?.() || pon.projectManager?.toString?.();
+    if (req.user.role === 'site_manager' && siteManagerId !== req.user.id) {
       return res.status(403).json({ message: 'Access denied' });
     }
-    if (req.user.role === 'project_manager' && pon.projectManager.toString() !== req.user.id) {
+    if (req.user.role === 'project_manager' && projectManagerId !== req.user.id) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
@@ -77,6 +80,14 @@ router.post('/', [
   body('ponId', 'PON ID is required').not().isEmpty(),
   body('name', 'Name is required').not().isEmpty(),
   body('location', 'Location is required').not().isEmpty(),
+  body('coordinates').optional().custom((val) => {
+    if (val == null) return true;
+    if (typeof val !== 'object') throw new Error('coordinates must be object');
+    if (typeof val.latitude !== 'number' || typeof val.longitude !== 'number') {
+      throw new Error('coordinates must include numeric latitude and longitude');
+    }
+    return true;
+  }),
   body('startDate', 'Start date is required').isISO8601(),
   body('expectedEndDate', 'Expected end date is required').isISO8601(),
   body('fiberCount', 'Fiber count must be a positive number').isInt({ min: 1 })
@@ -119,7 +130,8 @@ router.post('/', [
       fiberCount,
       splitterCount,
       equipment,
-      notes
+      notes,
+      ward: req.body.ward
     });
 
     await pon.save();
@@ -128,6 +140,7 @@ router.post('/', [
       .populate('projectManager', 'name email')
       .populate('siteManager', 'name email');
 
+    await StateLog.create({ entityType: 'PON', entityId: pon._id, before: null, after: populatedPON.toObject(), actor: req.user.id });
     res.json(populatedPON);
   } catch (error) {
     console.error(error.message);
@@ -140,7 +153,15 @@ router.post('/', [
 // @access  Private (Project Manager, Admin)
 router.put('/:id', [
   auth,
-  authorize('project_manager', 'admin')
+  authorize('project_manager', 'admin'),
+  body('coordinates').optional().custom((val) => {
+    if (val == null) return true;
+    if (typeof val !== 'object') throw new Error('coordinates must be object');
+    if (typeof val.latitude !== 'number' || typeof val.longitude !== 'number') {
+      throw new Error('coordinates must include numeric latitude and longitude');
+    }
+    return true;
+  })
 ], async (req, res) => {
   try {
     let pon = await PON.findById(req.params.id);
@@ -157,6 +178,7 @@ router.put('/:id', [
     const updateFields = { ...req.body };
     delete updateFields.projectManager; // Prevent changing project manager
 
+    const before = pon.toObject();
     pon = await PON.findByIdAndUpdate(
       req.params.id,
       { $set: updateFields },
@@ -164,6 +186,7 @@ router.put('/:id', [
     ).populate('projectManager', 'name email')
      .populate('siteManager', 'name email');
 
+    await StateLog.create({ entityType: 'PON', entityId: pon._id, before, after: pon.toObject(), actor: req.user.id });
     res.json(pon);
   } catch (error) {
     console.error(error.message);
@@ -185,6 +208,7 @@ router.put('/:id/progress', auth, async (req, res) => {
       return res.status(404).json({ message: 'PON not found' });
     }
 
+    const before = pon.toObject();
     // Update progress based on tasks
     await pon.updateProgress();
     await pon.save();
@@ -193,6 +217,7 @@ router.put('/:id/progress', auth, async (req, res) => {
       .populate('projectManager', 'name email')
       .populate('siteManager', 'name email');
 
+    await StateLog.create({ entityType: 'PON', entityId: pon._id, before, after: updatedPON.toObject(), actor: req.user.id });
     res.json(updatedPON);
   } catch (error) {
     console.error(error.message);
@@ -222,7 +247,9 @@ router.delete('/:id', [
     // Delete associated tasks
     await Task.deleteMany({ pon: req.params.id });
 
+    const before = pon.toObject();
     await PON.findByIdAndDelete(req.params.id);
+    await StateLog.create({ entityType: 'PON', entityId: before._id, before, after: null, actor: req.user.id });
 
     res.json({ message: 'PON and associated tasks deleted' });
   } catch (error) {

@@ -1,4 +1,5 @@
 const express = require('express');
+const { body, validationResult } = require('express-validator');
 const { auth, authorize } = require('../middleware/auth');
 const User = require('../models/User');
 
@@ -44,8 +45,17 @@ router.get('/:id', auth, async (req, res) => {
 // @route   PUT api/users/:id
 // @desc    Update user profile
 // @access  Private
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', [
+  auth,
+  body('name').optional().isString().isLength({ min: 1 }).withMessage('name invalid'),
+  body('phone').optional().isString(),
+  body('profile').optional().isObject()
+], async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
     // Users can only update their own profile unless they're admin
     if (req.params.id !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied' });

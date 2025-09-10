@@ -3,6 +3,7 @@ const PON = require('../models/PON');
 const Task = require('../models/Task');
 const User = require('../models/User');
 const { auth, authorize } = require('../middleware/auth');
+const StateLog = require('../models/StateLog');
 
 const router = express.Router();
 
@@ -12,6 +13,7 @@ const router = express.Router();
 router.get('/dashboard', auth, async (req, res) => {
   try {
     const query = {};
+    if (req.query.ward) query.ward = req.query.ward;
     
     // Filter by role
     if (req.user.role === 'site_manager') {
@@ -70,6 +72,7 @@ router.get('/dashboard', auth, async (req, res) => {
 router.get('/pons', auth, async (req, res) => {
   try {
     const query = {};
+    if (req.query.ward) query.ward = req.query.ward;
     
     // Filter by role
     if (req.user.role === 'site_manager') {
@@ -81,7 +84,7 @@ router.get('/pons', auth, async (req, res) => {
     const pons = await PON.find(query)
       .populate('projectManager', 'name email')
       .populate('siteManager', 'name email')
-      .select('ponId name location status progress startDate expectedEndDate actualEndDate')
+      .select('ponId name location status progress startDate expectedEndDate actualEndDate ward')
       .sort({ createdAt: -1 });
 
     res.json(pons);
