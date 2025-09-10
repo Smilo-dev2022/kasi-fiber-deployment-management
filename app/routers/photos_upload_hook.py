@@ -9,6 +9,7 @@ from app.core.deps import get_db, require_roles
 from app.core.limiter import env_org_limiter
 from app.models.photo import Photo
 from app.models.pon import PON
+from sqlalchemy import text
 from app.services.s3 import get_object_bytes, head_object, settings
 from app.services.exif import parse_exif
 
@@ -65,22 +66,25 @@ def register(payload: RegisterIn, db: Session = Depends(get_db), request: Reques
     if p.taken_ts:
         exif_ok = abs((datetime.now(timezone.utc) - p.taken_ts)) <= timedelta(hours=24)
     pon: PON | None = db.get(PON, p.pon_id)
-    if (
-        pon
-        and pon.center_lat
-        and pon.center_lng
-        and p.gps_lat is not None
-        and p.gps_lng is not None
-    ):
-        within = (
-            dist_m(
-                float(p.gps_lat),
-                float(p.gps_lng),
-                float(pon.center_lat),
-                float(pon.center_lng),
+    if pon and p.gps_lat is not None and p.gps_lng is not None:
+        if hasattr(pon, "geofence"):
+            row = db.execute(
+                text(
+                    "select ST_Contains(geofence, ST_SetSRID(ST_MakePoint(:lng,:lat),4326)) as inside from pons where id = :id"
+                ),
+                {"id": str(pon.id), "lat": float(p.gps_lat), "lng": float(p.gps_lng)},
+            ).first()
+            within = bool(row.inside) if row else False
+        elif pon.center_lat and pon.center_lng:
+            within = (
+                dist_m(
+                    float(p.gps_lat),
+                    float(p.gps_lng),
+                    float(pon.center_lat),
+                    float(pon.center_lng),
+                )
+                <= pon.geofence_radius_m
             )
-            <= pon.geofence_radius_m
-        )
 
     p.exif_ok = exif_ok
     p.within_geofence = within

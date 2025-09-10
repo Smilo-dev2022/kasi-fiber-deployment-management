@@ -19,7 +19,7 @@ if config.config_file_name is not None:
 def get_url() -> str:
     url = os.getenv(
         "DATABASE_URL",
-        "postgresql+psycopg2://app:app@localhost:5432/app",
+        "postgresql+psycopg://app:app@localhost:5432/app",
     )
     return url
 

@@ -8,11 +8,10 @@ from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    # Default useful for local dev; override in production
-    "postgresql+psycopg2://postgres:postgres@localhost:5432/postgres",
+    "postgresql+psycopg://app:app@localhost:5432/app",
 )
 
-engine = create_engine(DATABASE_URL, future=True)
+engine = create_engine(DATABASE_URL, future=True, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 Base = declarative_base()
