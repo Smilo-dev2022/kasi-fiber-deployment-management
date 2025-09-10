@@ -1,0 +1,27 @@
+# General
+.DS_Store
+node_modules/
+dist/
+build/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+coverage.xml
+
+# Python
+api/.env
+
+# JS
+web/.env
+web/.env.local
+
+# Alembic
+api/migrations/versions/*.pyc
+
+# IDE
+.idea/
+.vscode/
+
