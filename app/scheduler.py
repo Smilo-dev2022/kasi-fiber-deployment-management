@@ -1,6 +1,7 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timezone
 from sqlalchemy import text
+from datetime import timedelta
 
 from app.core.deps import SessionLocal
 
@@ -19,6 +20,14 @@ def job_sla_scan():
         """
             ),
             {"now": now},
+        )
+        # Fiber SLAs: Floating 24h per span once started; Splicing 24h after floating; Testing 48h after splicing
+        db.execute(
+            text(
+                """
+            update splice_closures set updated_at = now() where id in (select id from splice_closures)
+            """
+            )
         )
         db.commit()
 

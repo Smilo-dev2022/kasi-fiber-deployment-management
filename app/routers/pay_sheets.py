@@ -36,6 +36,25 @@ def generate(payload: GenIn, db: Session = Depends(get_db)):
       where date(sr.completed_at) between :s and :e
       group by sr.pon_id, sr.completed_by
     ),
+    -- Floating attribution not available yet; skip until performer tracking exists
+    splice_ok_trays as (
+      select st.id as tray_id
+      from splice_trays st
+      join splice_closures sc on sc.id = st.closure_id
+      left join splices s on s.tray_id = st.id and date(s.time) between :s and :e
+      where sc.pon_id is not null
+      group by st.id
+      having sum(case when s.passed = false then 1 else 0 end) is null or sum(case when s.passed = false then 1 else 0 end) = 0
+    ),
+    splice_lines as (
+      select sc.pon_id, s.tech_id as smme_id, count(s.id)::numeric as qty, 'Splicing'::text as step
+      from splices s
+      join splice_trays st on st.id = s.tray_id
+      join splice_ok_trays ok on ok.tray_id = st.id
+      join splice_closures sc on sc.id = st.closure_id
+      where s.passed = true and date(s.time) between :s and :e
+      group by sc.pon_id, s.tech_id
+    ),
     cac_pass as (
       select c.pon_id, u.id as smme_id, count(*)::numeric as qty, 'CAC'::text as step
       from cac_checks c
@@ -49,6 +68,8 @@ def generate(payload: GenIn, db: Session = Depends(get_db)):
       select pon_id, smme_user::uuid as smme_id, step, qty from str_run where smme_user = :sm
       union all
       select pon_id, smme_id, step, qty from cac_pass where smme_id = :sm
+      union all
+      select pon_id, smme_id, step, qty from splice_lines where smme_id = :sm
     ),
     priced as (
       select u.pon_id, u.step, u.qty,
