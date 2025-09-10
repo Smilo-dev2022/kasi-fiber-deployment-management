@@ -74,6 +74,27 @@ const TaskSchema = new mongoose.Schema({
       ref: 'User'
     }
   }],
+  sla: {
+    enabled: {
+      type: Boolean,
+      default: true
+    },
+    targetAt: {
+      type: Date
+    },
+    warnBeforeMinutes: {
+      type: Number,
+      default: 60,
+      min: 0,
+      max: 10080
+    },
+    warningNotifiedAt: {
+      type: Date
+    },
+    breachNotifiedAt: {
+      type: Date
+    }
+  },
   notes: String,
   dependencies: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -96,11 +117,21 @@ TaskSchema.methods.canStart = async function() {
   return deps.length === 0;
 };
 
-// Auto-complete task when evidence is provided (if required)
+// Auto-complete task when evidence is provided (if required) and manage SLA target
 TaskSchema.pre('save', function(next) {
   if (this.evidenceRequired && this.evidencePhotos.length > 0 && this.status === 'in_progress') {
     this.status = 'completed';
     this.completedDate = new Date();
+  }
+
+  // Ensure SLA target aligns with dueDate unless explicitly overridden
+  if (!this.sla) {
+    this.sla = {};
+  }
+  const dueDateChanged = this.isModified('dueDate');
+  const targetMissing = !this.sla.targetAt;
+  if ((dueDateChanged || targetMissing) && this.dueDate) {
+    this.sla.targetAt = this.dueDate;
   }
   next();
 });
