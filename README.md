@@ -1,3 +1,93 @@
+## Multi-tenant, White-label SaaS Reference (Postgres RLS, TypeScript, S3, Stripe/Paystack)
+
+This repository is a production-ready scaffold to run a true multi-tenant, white-label SaaS:
+
+- Data isolation via Postgres Row Level Security (RLS) with `tenant_id` and session GUC `app.current_tenant`
+- Host→tenant domain mapping and JWT with `tenant_id`
+- Theming engine (colors, logos, email/PDF placeholders)
+- Feature flags per tenant
+- Per-tenant file storage prefixes for S3 with signed uploads
+- Audit logs, IP allowlists, rate limits, metering, and billing webhooks
+
+### Quick start
+
+1) Prerequisites: Node 20+, pnpm or npm, Docker (for Postgres/Redis), psql
+
+2) Copy env and fill values:
+
+```bash
+cp .env.example .env
+```
+
+3) Start infra:
+
+```bash
+docker compose up -d
+```
+
+4) Install deps and run migrations:
+
+```bash
+npm install
+npm run db:migrate
+```
+
+5) Start API:
+
+```bash
+npm run dev
+```
+
+Health: GET http://localhost:3000/health  | Ready: GET /ready | Billing: GET /billing/status
+
+### Minimum to ship now
+
+- Add `tenant_id` and enforce RLS for all tables/queries (included)
+- Theme loader wired to emails/PDFs (stubs included)
+- Plan + metering counters (events + daily aggregates included)
+- Provisioning endpoint + CLI (included)
+- Custom domain mapping + TLS (mapping included, TLS doc inside `docs/domains-tls.md`)
+
+### Migrations
+
+Run all SQL in `db/sql/*.sql`. Initial migration:
+
+```bash
+npm run db:migrate
+```
+
+### Scripts
+
+- Provision tenant (CLI):
+
+```bash
+npm run provision -- --name "Acme" --code acme --domain app.acme.co --plan starter
+```
+
+- Aggregate usage (daily):
+
+```bash
+npm run usage:aggregate
+```
+
+### Docs
+
+- `docs/architecture.md` — architecture and RLS strategy
+- `docs/domains-tls.md` — custom domains and TLS options
+- `docs/whitelabel-guide.md` — how to brand UI/emails/PDFs
+- `docs/compliance.md` — POPIA, data residency, DPA, export/deletion
+- `docs/reseller.md` — partner tiers, deal registration, NFR
+- `docs/soc2-roadmap.md` — annual pentest + SOC2-style controls
+- `docs/checklist.md` — execution checklist
+- `docs/pricing.md` — pricing models and plan limits
+- `docs/gtm.md` — ICP, one-pagers, demo plan
+- `docs/sales-packages.md` — Pilot/Standard/Enterprise packages
+
+### Notes
+
+- RLS trusts only the Postgres session variable `app.current_tenant`, set per-request in a transaction. JWT `tenant_id` must match the resolved tenant from the Host domain (if present).
+- For schema-per-tenant or DB-per-tenant, see `docs/architecture.md` trade-offs and migration strategy.
+
 # FIBER PON Tracker App
 
 A comprehensive web application for training and tracking Project Managers and Site Managers on FiberTime sites. The app tracks PONs (Passive Optical Networks), tasks, CAC checks, stringing, photos, SMMEs, stock, and invoicing with evidence enforcement and auto-status computation.
