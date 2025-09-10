@@ -21,6 +21,9 @@ class IncidentUpdate(BaseModel):
     closed_at: Optional[datetime] = None
     root_cause: Optional[str] = None
     fix_code: Optional[str] = None
+    assigned_org_id: Optional[uuid.UUID] = None
+    due_at: Optional[datetime] = None
+    severity_sla_minutes: Optional[int] = None
 
 
 class IncidentOut(IncidentCreate, IncidentUpdate):

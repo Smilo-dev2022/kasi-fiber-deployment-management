@@ -189,3 +189,22 @@ The FIBER PON Tracker App is now complete and ready for:
 - Integration with existing systems
 
 **Total Implementation**: 49 files, 23,854+ lines of code, complete full-stack application.
+
+---
+
+## Additions for Access, Organizations, Assignments, and NOC/Topology
+
+- New migration `0009_orgs_contracts_assignments_topology` adds:
+  - `organizations`, `contracts`, `contract_wards`, `assignments`
+  - Extends `incidents` with `assigned_org_id`, `severity_sla_minutes`, `due_at`
+  - Topology: `splitters`, `splitter_ports`, `olt_ports`, `cable_register`
+- New models imported in `app/models/__init__.py`.
+- New routers and endpoints:
+  - `POST /contracts`, `POST /assignments`
+  - `GET /work-queue` (uses `X-Org-Id`, `X-Role`)
+  - `PATCH /incidents/assign` (body includes `incident_id`)
+  - `POST /tests/otdr/import` (snap OTDR event distance to cable map)
+- Webhooks tightened: HMAC via `NMS_HMAC_SECRET`, IP allow list via `WEBHOOK_IP_ALLOW_LIST`, 30-minute dedup, clear handlers, auto-assign with SLA due.
+- Scheduler: simple paging log for imminent P1 SLA breaches.
+
+Setup notes: run Postgres via `infra/docker-compose.yml`, set `DATABASE_URL`, run Alembic migrations, then `uvicorn app.main:app`.

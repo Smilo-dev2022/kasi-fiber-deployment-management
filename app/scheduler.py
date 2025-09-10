@@ -1,6 +1,7 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timezone
 from sqlalchemy import text
+from os import getenv
 
 from app.core.deps import SessionLocal
 
@@ -38,6 +39,26 @@ def job_weekly_report():
 
 def init_jobs():
     sched.add_job(job_sla_scan, "interval", minutes=15, id="sla-scan")
+    # Paging simulation: emit a log when P1 due within 15 minutes
+    if getenv("ENABLE_PAGING", "1") == "1":
+        def job_page_p1():
+            with SessionLocal() as db:
+                rows = (
+                    db.execute(
+                        text(
+                            """
+                    select id::text from incidents
+                    where severity = 'P1' and status in ('Open','Acknowledged')
+                      and due_at is not null and due_at < now() + interval '15 minutes'
+                  """
+                        )
+                    )
+                    .mappings()
+                    .all()
+                )
+                if rows:
+                    print(f"[PAGE] P1 incidents nearing SLA: {[r['id'] for r in rows]}")
+        sched.add_job(job_page_p1, "interval", minutes=5, id="page-p1")
     sched.add_job(job_photo_revalidate, "cron", hour=18, minute=0, id="photo-revalidate")
     sched.add_job(job_weekly_report, "cron", day_of_week="mon", hour=6, minute=0, id="weekly-report")
     sched.start()

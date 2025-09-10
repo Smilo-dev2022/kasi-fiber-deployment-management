@@ -10,6 +10,9 @@ from app.routers import photos_validate as photos_val_router
 from app.routers import assets as assets_router
 from app.routers import reports as reports_router
 from app.routers import rate_cards as rate_router
+from app.routers import contracts as contracts_router
+from app.routers.contracts import assign_router as assignments_router
+from app.routers import work_queue as work_queue_router
 from app.routers import pay_sheets as pays_router
 from app.routers import photos_upload_hook as photos_upload_router
 from app.routers import devices as devices_router
@@ -47,6 +50,9 @@ app.include_router(photos_val_router.router)
 app.include_router(assets_router.router)
 app.include_router(reports_router.router)
 app.include_router(rate_router.router)
+app.include_router(contracts_router.router)
+app.include_router(assignments_router)
+app.include_router(work_queue_router.router)
 app.include_router(pays_router.router)
 app.include_router(photos_upload_router.router)
 app.include_router(devices_router.router)
