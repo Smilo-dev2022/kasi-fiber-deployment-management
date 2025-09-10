@@ -78,10 +78,26 @@ const TaskSchema = new mongoose.Schema({
   dependencies: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Task'
-  }]
+  }],
+  // SLA fields
+  slaMinutes: {
+    type: Number,
+    min: 0
+  },
+  slaDueAt: {
+    type: Date
+  },
+  breached: {
+    type: Boolean,
+    default: false,
+    index: true
+  }
 }, {
   timestamps: true
 });
+
+// Indexes to support SLA queries
+TaskSchema.index({ slaDueAt: 1 });
 
 // Check if task can be started (dependencies completed)
 TaskSchema.methods.canStart = async function() {

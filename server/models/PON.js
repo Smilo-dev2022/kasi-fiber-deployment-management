@@ -71,7 +71,16 @@ const PONSchema = new mongoose.Schema({
     min: 0,
     max: 100,
     default: 0
-  }
+  },
+  // SLA aggregate fields
+  slaBreaches: {
+    type: Number,
+    default: 0
+  },
+  // Geofence fields for photo validation
+  centerLat: { type: Number },
+  centerLng: { type: Number },
+  geofenceRadiusM: { type: Number, default: 200 }
 }, {
   timestamps: true
 });
