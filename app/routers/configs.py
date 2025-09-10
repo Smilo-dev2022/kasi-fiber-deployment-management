@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.core.deps import get_db, require_roles
-from app.core.rate_limit import rate_limit
+from app.core.limiter import env_ip_limiter
 from app.models.device import Device, DeviceConfig, GoldenTemplate
 from app.models.incident import Incident
 
@@ -28,7 +28,7 @@ def _verify_hmac(request: Request, body: bytes):
         raise HTTPException(401, "Invalid signature")
 
 
-@router.post("/oxidized", dependencies=[Depends(rate_limit("webhook:oxidized", 60, 60))])
+@router.post("/oxidized", dependencies=[Depends(env_ip_limiter("WEBHOOK_IP", 60, 60))])
 async def oxidized_webhook(request: Request, db: Session = Depends(get_db)):
     raw = await request.body()
     _verify_hmac(request, raw)

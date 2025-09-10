@@ -103,8 +103,22 @@ Ensure production environment variables are set:
 - `NMS_ALLOW_IPS`: Comma-separated source IPs allowed for webhooks
 - `NMS_HMAC_SECRET`: Shared secret used to verify HMAC (`X-Signature`)
 - `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`
+\- Rate limiting (tune per env):
+  - FastAPI webhooks (per IP): `WEBHOOK_IP_LIMIT`, `WEBHOOK_IP_WINDOW` (default `60` req / `60` sec)
+  - Heavy writes (per org): `HEAVY_ORG_LIMIT`, `HEAVY_ORG_WINDOW` (default `120` req / `60` sec)
+  - Heavy writes bypass roles: `HEAVY_ORG_BYPASS_ROLES` (comma-separated; default `NOC`)
+  - Express webhook (per IP): `WEBHOOK_IP_LIMIT`, `WEBHOOK_IP_WINDOW` used by `server/routes/nmsWebhook.js`
 ### Staging/Prod Env Files
 Create `.env.staging` and `.env.prod` per ops rollout.
+
+Recommended values:
+
+- Staging:
+  - `WEBHOOK_IP_LIMIT=15`, `WEBHOOK_IP_WINDOW=60`
+  - `HEAVY_ORG_LIMIT=60`, `HEAVY_ORG_WINDOW=60`, `HEAVY_ORG_BYPASS_ROLES=NOC`
+- Production:
+  - `WEBHOOK_IP_LIMIT=60`, `WEBHOOK_IP_WINDOW=60`
+  - `HEAVY_ORG_LIMIT=120`, `HEAVY_ORG_WINDOW=60`, `HEAVY_ORG_BYPASS_ROLES=NOC`
 
 ### Alembic
 Run migrations using:

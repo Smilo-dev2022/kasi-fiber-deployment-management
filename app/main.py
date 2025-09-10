@@ -31,7 +31,7 @@ from app.routers import configs as configs_router
 from app.routers import spares as spares_router
 from app.scheduler import init_jobs
 from app.core.health import router as health_router
-from app.core.limiter import limiter, key_by_ip
+from app.core.limiter import env_ip_limiter
 
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -71,7 +71,7 @@ app.include_router(otdr_router.router)
 app.include_router(lspm_router.router)
 app.include_router(
     nms_router.router,
-    dependencies=[limiter(limit=60, window_sec=60, key_fn=key_by_ip)],
+    dependencies=[env_ip_limiter()],
 )
 app.include_router(workq_router.router)
 app.include_router(topo_router.router)
@@ -91,7 +91,13 @@ async def _log_jobs():
 
 @app.middleware("http")
 async def add_org_to_state(request: Request, call_next):
-    # set request.state.org_id if you decode it in your auth dependency
+    # Read org id from header to support per-org rate limiting
+    try:
+        org_id = request.headers.get("X-Org-Id")
+        if org_id:
+            request.state.org_id = org_id
+    except Exception:
+        pass
     return await call_next(request)
 
 
