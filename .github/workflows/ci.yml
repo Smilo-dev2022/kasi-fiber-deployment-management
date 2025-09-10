@@ -1,0 +1,74 @@
+name: CI
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: fiber
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U postgres" --health-interval=5s
+          --health-timeout=5s --health-retries=5
+      minio:
+        image: minio/minio:latest
+        env:
+          MINIO_ACCESS_KEY: minio
+          MINIO_SECRET_KEY: minio123
+        ports: ['9000:9000']
+        options: >-
+          --health-cmd="curl -f http://localhost:9000/minio/health/live || exit 1" --health-interval=5s
+          --health-timeout=5s --health-retries=5
+        command: server /data
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/fiber
+      JWT_SECRET: test_secret
+      S3_ENDPOINT: http://localhost:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: fiber-photos
+      S3_ACCESS_KEY: minio
+      S3_SECRET_KEY: minio123
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+      PYTHONDONTWRITEBYTECODE: 1
+      PYTHONUNBUFFERED: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+      - name: Wait for Postgres
+        run: |
+          for i in {1..30}; do pg_isready -h localhost -U postgres && break || sleep 1; done
+      - name: Prepare DB
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -c "CREATE DATABASE fiber;" || true
+      - name: Alembic upgrade
+        run: |
+          source .venv/bin/activate
+          alembic upgrade head
+      - name: Lint
+        run: |
+          source .venv/bin/activate
+          python -m pip install ruff
+          ruff check app
+      - name: Tests
+        run: |
+          source .venv/bin/activate
+          python -m pip install pytest pytest-cov
+          pytest -q --maxfail=1 --disable-warnings
+

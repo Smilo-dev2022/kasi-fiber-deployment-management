@@ -8,6 +8,8 @@ from app.routers import assets as assets_router
 from app.routers import reports as reports_router
 from app.routers import rate_cards as rate_router
 from app.routers import pay_sheets as pays_router
+from app.routers import photos_upload_hook as photos_upload_router
+from app.scheduler import init_jobs
 
 
 app = FastAPI()
@@ -20,4 +22,7 @@ app.include_router(assets_router.router)
 app.include_router(reports_router.router)
 app.include_router(rate_router.router)
 app.include_router(pays_router.router)
+app.include_router(photos_upload_router.router)
+
+init_jobs()
 
