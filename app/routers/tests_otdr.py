@@ -4,6 +4,9 @@ from sqlalchemy import text
 from uuid import uuid4
 from pydantic import BaseModel, Field
 from app.core.deps import get_db, require_roles
+from typing import List
+from math import isfinite
+from app.models.topology_ext import CableRegister
 
 
 router = APIRouter(prefix="/tests/otdr", tags=["tests"])
@@ -19,6 +22,8 @@ class OTDRIn(BaseModel):
     max_splice_loss_db: float | None = Field(default=None, ge=0.0, le=5.0)
     back_reflection_db: float | None = Field(default=None, ge=-80.0, le=-20.0)
     passed: bool = False
+    # Optional parsed events: distance_m values to snap
+    events_distance_m: List[float] | None = None
 
 
 @router.post("", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
@@ -45,7 +50,50 @@ def add_otdr(payload: OTDRIn, db: Session = Depends(get_db)):
         },
     )
     db.commit()
+    # Optional: insert snapped OTDR events
+    if payload.events_distance_m:
+        # Get candidate cable polyline for the plan's PON
+        row = db.execute(text("select p.pon_id from test_plans tp join pons p on tp.pon_id = p.id where tp.id = :tp"), {"tp": payload.test_plan_id}).first()
+        pon_id = row[0] if row else None
+        cable = (
+            db.query(CableRegister)
+            .filter(CableRegister.pon_id == pon_id)
+            .order_by(CableRegister.length_m.desc().nullslast())
+            .first()
+        )
+        if cable and cable.polyline:
+            import json
+            try:
+                coords = json.loads(cable.polyline)
+            except Exception:
+                coords = []
+            def snap_distance_to_polyline(dist_m: float):
+                # naive proportional snap along polyline by chainage
+                if not coords or not isfinite(dist_m):
+                    return None
+                total = float(cable.length_m or 0)
+                if total <= 0:
+                    return None
+                t = max(0.0, min(1.0, dist_m / total))
+                idx = int(t * (len(coords) - 1))
+                lat, lng = coords[idx]
+                return lat, lng
+            for d in payload.events_distance_m:
+                snapped = snap_distance_to_polyline(d)
+                if snapped:
+                    db.execute(
+                        text(
+                            "insert into otdr_events (id, otdr_result_id, distance_m, gps_lat, gps_lng, created_at) values (gen_random_uuid(), :rid, :dist, :lat, :lng, now())"
+                        ),
+                        {"rid": oid, "dist": d, "lat": snapped[0], "lng": snapped[1]},
+                    )
+            db.commit()
     return {"ok": True, "id": oid}
+
+
+@router.post("/import", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
+def import_otdr(payload: OTDRIn, db: Session = Depends(get_db)):
+    return add_otdr(payload, db)
 
 
 @router.get("/by-plan/{plan_id}", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "AUDITOR"))])
