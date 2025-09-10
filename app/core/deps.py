@@ -34,3 +34,7 @@ def require_roles(*allowed_roles: Sequence[str]) -> Callable:
 
     return checker
 
+
+def get_db_session() -> Session:
+    return SessionLocal()
+

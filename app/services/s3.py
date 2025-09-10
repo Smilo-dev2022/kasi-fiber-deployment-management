@@ -50,3 +50,11 @@ def head_object(key: str) -> Dict[str, Any]:
     meta = s3.head_object(Bucket=settings.S3_BUCKET, Key=key)
     return meta
 
+
+# Convenience exports for other modules
+def s3_client():
+    return get_client()
+
+
+S3_BUCKET = settings.S3_BUCKET
+
