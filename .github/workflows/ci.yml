@@ -1,0 +1,56 @@
+name: CI
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: fiber
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U postgres" --health-interval=5s
+          --health-timeout=5s --health-retries=5
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/fiber
+      JWT_SECRET: test_secret
+      S3_ENDPOINT: http://localhost:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: fiber-photos
+      S3_ACCESS_KEY: minio
+      S3_SECRET_KEY: minio123
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+      PYTHONDONTWRITEBYTECODE: 1
+      PYTHONUNBUFFERED: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+      - name: Alembic upgrade
+        run: |
+          source .venv/bin/activate
+          alembic upgrade head
+      - name: Lint
+        run: |
+          source .venv/bin/activate
+          python -m pip install ruff
+          ruff check app
+      - name: Tests
+        run: |
+          source .venv/bin/activate
+          python -m pip install pytest pytest-cov
+          pytest -q --maxfail=1 --disable-warnings
+

@@ -7,3 +7,7 @@ pydantic==1.10.18
 qrcode==7.4.2
 pillow==10.4.0
 python-multipart==0.0.9
+exifread==3.0.0
+reportlab==4.2.2
+APScheduler==3.10.4
+boto3==1.35.27
