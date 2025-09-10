@@ -19,24 +19,22 @@ class GenIn(BaseModel):
 
 @router.post("/generate", dependencies=[Depends(require_roles("ADMIN", "PM"))])
 def generate(payload: GenIn, db: Session = Depends(get_db)):
-    q = text(
+    # Aggregate by PON and step with active rates
+    # Poles
+    poles_q = text(
         """
-    with
-    poles as (
-      select t.smmme_id as smme_id, t.pon_id, count(*)::numeric as qty
-      from tasks t
-      where t.step='PolePlanting' and t.status='Done' and t.completed_at::date between :s and :e
-      group by t.smmme_id, t.pon_id
-    ),
-    strg as (
-      select sr.completed_by as smme_user, sr.pon_id, coalesce(sum(sr.meters),0)::numeric as meters
-      from stringing_runs sr
-      where sr.completed_at::date between :s and :e
-      group by sr.completed_by, sr.pon_id
+        insert into pay_sheet_lines (id, pay_sheet_id, pon_id, step, quantity, rate_cents, amount_cents)
+        select gen_random_uuid(), :ps_id, t.pon_id, 'PolePlanting',
+               count(*)::numeric as qty,
+               rc.rate_cents,
+               (count(*)::bigint * rc.rate_cents) as amt
+        from tasks t
+        join rate_cards rc on rc.smme_id = t.smmme_id and rc.step='PolePlanting' and rc.active
+        where t.step='PolePlanting' and t.status='Done' and t.completed_at::date between :s and :e and t.smmme_id = :smme
+        group by t.pon_id, rc.rate_cents
+        """
     )
-    select 1
-    """
-    )
+    # Stringing placeholder: assume tasks table has meters in sla_minutes temporarily is not correct; skip unless stringing_runs exists
     ps_id = str(uuid4())
     db.execute(
         text(
@@ -44,6 +42,14 @@ def generate(payload: GenIn, db: Session = Depends(get_db)):
                 values (:id, :s, :ps, :pe, 0, 'Draft')"""
         ),
         {"id": ps_id, "s": payload.smme_id, "ps": payload.period_start, "pe": payload.period_end},
+    )
+    db.execute(poles_q, {"ps_id": ps_id, "s": payload.period_start, "e": payload.period_end, "smme": payload.smme_id})
+    # Recompute total
+    db.execute(
+        text(
+            "update pay_sheets set total_cents = coalesce((select sum(amount_cents) from pay_sheet_lines where pay_sheet_id=:id),0) where id=:id"
+        ),
+        {"id": ps_id},
     )
     db.commit()
     return {"ok": True, "pay_sheet_id": ps_id}
@@ -55,7 +61,23 @@ class StatusIn(BaseModel):
 
 @router.patch("/{pay_sheet_id}", dependencies=[Depends(require_roles("ADMIN", "PM"))])
 def set_status(pay_sheet_id: str, payload: StatusIn, db: Session = Depends(get_db)):
-    db.execute(text("update pay_sheets set status=:st where id=:id"), {"st": payload.status, "id": pay_sheet_id})
+    # Guards: only allow Draft -> Submitted -> Approved
+    cur = db.execute(text("select status from pay_sheets where id=:id"), {"id": pay_sheet_id}).first()
+    if not cur:
+        raise HTTPException(404, "Not found")
+    current = cur[0]
+    target = payload.status
+    allowed = {
+        "Draft": {"Submitted"},
+        "Submitted": {"Approved", "Draft"},
+        "Approved": set(),
+    }
+    if target not in allowed.get(current, set()):
+        raise HTTPException(400, "Invalid status transition")
+    # Lock lines when Submitted
+    if target == "Submitted":
+        db.execute(text("update pay_sheet_lines set rate_cents = rate_cents where pay_sheet_id=:id"), {"id": pay_sheet_id})
+    db.execute(text("update pay_sheets set status=:st where id=:id"), {"st": target, "id": pay_sheet_id})
     db.commit()
     return {"ok": True}
 

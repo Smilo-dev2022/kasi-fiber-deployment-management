@@ -4,6 +4,8 @@ from pydantic import BaseModel, Field
 from typing import Optional
 from app.core.deps import get_db, require_roles
 from app.models.cac import CACCheck
+from app.models.photo import Photo
+from app.services.status_engine import recompute_pon_status
 
 
 router = APIRouter(prefix="/cac", tags=["cac"])
@@ -25,6 +27,16 @@ class CACIn(BaseModel):
 def create_cac(payload: CACIn, db: Session = Depends(get_db)):
     from uuid import UUID
 
+    # Block completion if within_geofence is false (no validated photo)
+    has_valid_photo = (
+        db.query(Photo.id).filter(
+            Photo.pon_id == UUID(payload.pon_id), Photo.within_geofence == True, Photo.exif_ok == True
+        ).first()
+        is not None
+    )
+    if not has_valid_photo:
+        raise HTTPException(400, "Geofence not validated")
+
     rec = CACCheck(
         pon_id=UUID(payload.pon_id),
         pole_number=payload.pole_number,
@@ -38,5 +50,7 @@ def create_cac(payload: CACIn, db: Session = Depends(get_db)):
     )
     db.add(rec)
     db.commit()
+    # Status engine
+    recompute_pon_status(db, rec.pon_id)
     return {"ok": True, "id": str(rec.id)}
 

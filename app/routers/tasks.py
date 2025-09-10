@@ -5,6 +5,8 @@ from pydantic import BaseModel
 from typing import Optional
 from app.core.deps import get_db, require_roles
 from app.models.task import Task
+from app.services.status_engine import recompute_pon_status
+from app.settings import get_sla_minutes
 
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -16,13 +18,7 @@ class TaskUpdateIn(BaseModel):
     completed_at: Optional[str] = None
 
 
-DEFAULT_SLA = {
-    "Permissions": 72 * 60,
-    "PolePlanting": 48 * 60,
-    "CAC": 24 * 60,
-    "Stringing": 48 * 60,
-    "Invoicing": 24 * 60,
-}
+DEFAULT_SLA = get_sla_minutes()
 
 
 @router.patch("/{task_id}", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
@@ -43,5 +39,8 @@ def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(get_d
     if "status" in data and data["status"] == "Done" and task.sla_due_at and task.completed_at:
         task.breached = task.completed_at > task.sla_due_at
     db.commit()
+    # Status engine
+    if task.pon_id:
+        recompute_pon_status(db, task.pon_id)
     return {"ok": True, "breached": task.breached, "sla_due_at": task.sla_due_at}
 

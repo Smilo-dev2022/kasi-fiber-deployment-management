@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Literal, Optional
@@ -45,7 +45,7 @@ def create_batch(payload: AssetBatchIn, db: Session = Depends(get_db)):
     return {"codes": ids}
 
 
-@router.get("/qr/{code}")
+@router.get("/qr/{code}", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "SMME"))])
 def qr_png(code: str):
     img = qrcode.make(code)
     buf = io.BytesIO()
@@ -68,6 +68,9 @@ def scan(payload: AssetScanIn, db: Session = Depends(get_db)):
     if payload.action == "ISSUE":
         new_values["status"] = "Issued"
     elif payload.action == "INSTALL":
+        # Prevent INSTALL unless asset status is Issued
+        if asset_row["status"] != "Issued":
+            raise HTTPException(400, "Asset not issued")
         new_values["status"] = "Installed"
         if payload.pon_id:
             from uuid import UUID
@@ -85,4 +88,22 @@ def scan(payload: AssetScanIn, db: Session = Depends(get_db)):
 
     status_value = new_values.get("status", asset_row["status"])
     return {"ok": True, "status": status_value}
+
+
+@router.get("", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
+def list_assets(
+    status: str | None = Query(default=None),
+    pon_id: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    t = mstock.sa_insert_assets().table
+    stmt = select(t)
+    if status:
+        stmt = stmt.where(t.c.status == status)
+    if pon_id:
+        from uuid import UUID
+
+        stmt = stmt.where(t.c.pon_id == UUID(pon_id))
+    rows = db.execute(stmt).mappings().all()
+    return {"items": [dict(r) for r in rows]}
 

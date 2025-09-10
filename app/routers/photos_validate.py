@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime, timezone, timedelta
 from app.core.deps import get_db, require_roles
 from app.models.photo import Photo
+from app.utils.exif import extract_gps_and_datetime
 from app.models.pon import PON
+from app.services.status_engine import recompute_pon_status
 import math
 
 
@@ -52,5 +54,34 @@ def validate_photo(payload: ValidateIn, db: Session = Depends(get_db)):
             <= pon.geofence_radius_m
         )
     db.commit()
+    if p.pon_id:
+        recompute_pon_status(db, p.pon_id)
     return {"ok": True, "exif_ok": p.exif_ok, "within_geofence": p.within_geofence}
+
+
+ALLOWED_UPLOAD_TYPES = {"image/jpeg", "image/png", "application/pdf"}
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
+
+@router.post("/upload", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "SMME"))])
+async def upload_photo(pon_id: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    if file.content_type not in ALLOWED_UPLOAD_TYPES:
+        raise HTTPException(400, "Unsupported file type")
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(400, "File too large")
+
+    from uuid import uuid4, UUID
+
+    photo = Photo(id=uuid4(), pon_id=UUID(pon_id))
+
+    if file.content_type in ("image/jpeg", "image/png"):
+        lat, lng, dt = extract_gps_and_datetime(data)
+        photo.gps_lat = lat
+        photo.gps_lng = lng
+        photo.taken_ts = dt
+
+    db.add(photo)
+    db.commit()
+    return {"ok": True, "photo_id": str(photo.id)}
 

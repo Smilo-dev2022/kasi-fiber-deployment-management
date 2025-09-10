@@ -9,7 +9,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker, Session
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     # Default useful for local dev; override in production
-    "postgresql+psycopg2://postgres:postgres@localhost:5432/postgres",
+    "postgresql+psycopg://postgres:postgres@localhost:5432/postgres",
 )
 
 engine = create_engine(DATABASE_URL, future=True)
