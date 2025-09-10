@@ -80,6 +80,38 @@ def generate(payload: GenIn, db: Session = Depends(get_db)):
         db.commit()
         return {"ok": True, "pay_sheet_id": ps_id, "lines": 0}
 
+    # Enforce test gating: all required tests for each PON must have at least one passed result
+    pons = sorted({r["pon"] for r in rows})
+    if pons:
+        gating = db.execute(
+            text(
+                """
+            with req as (
+              select tp.pon_id,
+                     bool_or(tp.otdr_required) as otdr_req,
+                     bool_or(tp.lspm_required) as lspm_req
+              from test_plans tp
+              where tp.pon_id = any(:pons)
+              group by tp.pon_id
+            ),
+            have as (
+              select r.pon_id,
+                     exists(select 1 from otdr_results o join test_plans t on o.test_plan_id = t.id where t.pon_id = r.pon_id and o.passed) as have_otdr,
+                     exists(select 1 from lspm_results l join test_plans t on l.test_plan_id = t.id where t.pon_id = r.pon_id and l.passed) as have_lspm
+              from req r
+            )
+            select r.pon_id::text as pon,
+                   (case when r.otdr_req and not h.have_otdr then false else true end) as otdr_ok,
+                   (case when r.lspm_req and not h.have_lspm then false else true end) as lspm_ok
+            from req r join have h on h.pon_id = r.pon_id
+            """
+            ),
+            {"pons": pons},
+        ).mappings().all()
+        failed = [g["pon"] for g in gating if not (g["otdr_ok"] and g["lspm_ok"])]
+        if failed:
+            raise HTTPException(400, detail={"error": "Test gating not satisfied", "pons": failed})
+
     total = sum(r["amount_cents"] for r in rows)
     ps_id = str(uuid4())
     db.execute(

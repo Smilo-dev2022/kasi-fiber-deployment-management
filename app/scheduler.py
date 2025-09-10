@@ -5,6 +5,8 @@ from sqlalchemy import text
 from app.core.deps import SessionLocal
 
 
+import logging
+
 sched = BackgroundScheduler(timezone="Africa/Johannesburg")
 
 
@@ -53,4 +55,5 @@ def init_jobs():
     sched.add_job(job_photo_revalidate, "cron", hour=18, minute=0, id="photo-revalidate")
     sched.add_job(job_weekly_report, "cron", day_of_week="mon", hour=6, minute=0, id="weekly-report")
     sched.start()
+    logging.getLogger(__name__).info("APScheduler started with jobs: %s", [j.id for j in sched.get_jobs()])
 
