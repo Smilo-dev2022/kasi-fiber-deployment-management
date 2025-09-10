@@ -34,6 +34,19 @@
 - OIDC issuer/client ID/client secret: from your identity provider
 - Database URL (prod): full DSN, e.g., `postgresql+psycopg2://user:pass@host:5432/dbname`
 
+## Rotation
+- Rotate JWT secrets per environment quarterly or on incident.
+- Keep previous secret active for a short overlap window to allow token rollover.
+- Steps:
+  1. Add new secret in secret manager (e.g., `SECRET_STAGING_JWT_NEXT`).
+  2. Deploy API to read primary `JWT_SECRET` and optional `JWT_SECRET_PREV`.
+  3. Update environment: set `JWT_SECRET_PREV` to old, `JWT_SECRET` to new.
+  4. After 24-48h, unset `JWT_SECRET_PREV`.
+
+## Env names
+- CORS: use `CORS_ALLOWED_ORIGINS`.
+- MinIO/S3: `S3_ACCESS_KEY`, `S3_SECRET_KEY` (default local `minio12345`).
+
 ## Helpful commands
 - Generate hex secret: `openssl rand -hex 32`
 - Validate HMAC locally: see `scripts/test_webhooks.sh`

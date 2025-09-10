@@ -49,3 +49,23 @@ def weekly(payload: WeeklyIn, db: Session = Depends(get_db)):
         "url": url,
     }
 
+
+@router.get("/kpi", dependencies=[Depends(require_roles("ADMIN", "PM", "NOC"))])
+def kpi(db: Session = Depends(get_db)):
+    incidents_created = db.execute(text("select count(1) from incidents")).scalar()
+    incidents_resolved = db.execute(text("select count(1) from incidents where status in ('Resolved','Closed')")).scalar()
+    incidents_breached = db.execute(text("select count(1) from tasks where breached = true")).scalar()
+    tasks_open = db.execute(text("select count(1) from tasks where status not in ('Done','Cancelled') or status is null")).scalar()
+    tasks_done = db.execute(text("select count(1) from tasks where status = 'Done'")) .scalar()
+    return {
+        "incidents": {
+            "created": incidents_created,
+            "resolved": incidents_resolved,
+            "breached": incidents_breached,
+        },
+        "tasks": {
+            "open": tasks_open,
+            "done": tasks_done,
+        },
+    }
+

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from app.core.deps import get_db
 from app.core.rate_limit import rate_limit
+from fastapi import Request
 from app.models.incident import Incident, MaintWindow
 from app.models.device import Device
 

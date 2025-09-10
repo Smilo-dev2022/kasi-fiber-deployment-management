@@ -1,4 +1,5 @@
 import React from 'react';
+import axios from 'axios';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
@@ -15,3 +16,8 @@ root.render(
 // to log results (for example: reportWebVitals(console.log))
 // or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();
+
+// Configure axios baseURL from env for FastAPI (optional override)
+if (process.env.REACT_APP_API_BASE) {
+  axios.defaults.baseURL = process.env.REACT_APP_API_BASE;
+}

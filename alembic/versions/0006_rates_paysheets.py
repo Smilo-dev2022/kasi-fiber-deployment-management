@@ -40,6 +40,7 @@ def upgrade():
         sa.Column("amount_cents", sa.BigInteger(), nullable=False),
     )
     op.create_index("idx_rate_cards_active", "rate_cards", ["active"]) 
+    op.create_index("idx_rate_cards_step", "rate_cards", ["step"]) 
     op.create_index("idx_pay_sheets_smme", "pay_sheets", ["smme_id"]) 
     op.create_index("idx_pay_sheet_lines_ps", "pay_sheet_lines", ["pay_sheet_id"]) 
 

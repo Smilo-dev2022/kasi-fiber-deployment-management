@@ -1,4 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
+import os
+import json
+import time
+import redis
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
@@ -9,6 +13,12 @@ from app.models.orgs import Assignment
 
 router = APIRouter(prefix="", tags=["work-queue"])
 
+_redis = None
+try:
+    _redis = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+    _redis.ping()
+except Exception:
+    _redis = None
 
 class WorkItem(BaseModel):
     id: str
@@ -24,6 +34,15 @@ def work_queue(db: Session = Depends(get_db), x_org_id: Optional[str] = Header(d
         raise HTTPException(400, "X-Org-Id required")
     if x_role == "SalesAgent":
         return []
+    # Cache for 30 seconds per org
+    cache_key = f"wq:{x_org_id}"
+    if _redis is not None:
+        try:
+            cached = _redis.get(cache_key)
+            if cached:
+                return [WorkItem(**item) for item in json.loads(cached)]
+        except Exception:
+            pass
     q = db.query(Task)
     assigned_steps = (
         db.query(Assignment.step_type)
@@ -35,7 +54,7 @@ def work_queue(db: Session = Depends(get_db), x_org_id: Optional[str] = Header(d
     if steps:
         q = q.filter(Task.step.in_(steps))
     rows = q.order_by(Task.sla_due_at.is_(None), Task.sla_due_at.asc()).all()
-    return [
+    result = [
         WorkItem(
             id=str(t.id),
             pon_id=str(t.pon_id) if t.pon_id else None,
@@ -45,4 +64,10 @@ def work_queue(db: Session = Depends(get_db), x_org_id: Optional[str] = Header(d
         )
         for t in rows
     ]
+    if _redis is not None:
+        try:
+            _redis.setex(cache_key, 30, json.dumps([r.dict() for r in result]))
+        except Exception:
+            pass
+    return result
 

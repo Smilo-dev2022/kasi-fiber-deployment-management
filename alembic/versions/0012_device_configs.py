@@ -18,6 +18,7 @@ def upgrade():
         sa.Column("hash_sha256", sa.String(), nullable=False),
     )
     op.create_index("idx_device_configs_device_time", "device_configs", ["device_id", "collected_at"]) 
+    op.create_index("idx_configs_device", "device_configs", ["device_id"]) 
 
     op.create_table(
         "golden_templates",

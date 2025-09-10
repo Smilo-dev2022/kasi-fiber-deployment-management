@@ -25,6 +25,11 @@ def upgrade():
         sa.Column("checked_by", sa.dialects.postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
         sa.Column("checked_at", sa.DateTime(timezone=True), nullable=True),
     )
+    # Optional index to accelerate reporting
+    try:
+        op.create_index("idx_certificate_acceptance_pon_checked", "certificate_acceptance", ["pon_id", "checked_at"]) 
+    except Exception:
+        pass
     # Data migration from cac_checks if exists
     conn = op.get_bind()
     try:

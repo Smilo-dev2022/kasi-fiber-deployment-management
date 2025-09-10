@@ -11,3 +11,6 @@ exifread==3.0.0
 reportlab==4.2.2
 APScheduler==3.10.4
 boto3==1.35.41
+redis==5.0.8
+apscheduler-redis==0.4.0
+sentry-sdk==2.14.0

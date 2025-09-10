@@ -7,7 +7,7 @@ A comprehensive web application for training and tracking Project Managers and S
 - **Core API added**: FastAPI service (`app/`) with PostgreSQL, SQLAlchemy, and Alembic
 - **Infra stack**: Postgres (PostGIS), Redis, MinIO (S3-compatible), Mailhog via `infra/docker-compose.yml`
 - **Health checks**: FastAPI exposes `/healthz` and `/readyz`
-- **CORS**: Configurable allowlist via `CORS_ALLOW_ORIGINS`
+- **CORS**: Configurable allowlist via `CORS_ALLOWED_ORIGINS`
 - **S3 integration**: Photo bytes stored via `boto3` with S3-compatible endpoints (`app/services/s3.py`)
 - **Background jobs**: APScheduler jobs for SLA scan, photo revalidation, weekly report (`app/scheduler.py`)
 - **Renamed CAC**: CAC → Certificate Acceptance (see `alembic/versions/0010_cac_to_certificate_acceptance.py` and `app/routers/certificate_acceptance.py`)
@@ -61,7 +61,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 export DATABASE_URL="postgresql+psycopg2://app:app@localhost:5432/app"
-export CORS_ALLOW_ORIGINS="http://localhost:3000"
+export CORS_ALLOWED_ORIGINS="http://localhost:3000"
 export S3_ENDPOINT="http://localhost:9000"
 export S3_REGION="us-east-1"
 export S3_BUCKET="fiber-photos"

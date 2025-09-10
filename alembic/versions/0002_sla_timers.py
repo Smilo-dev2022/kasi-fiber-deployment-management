@@ -14,6 +14,7 @@ def upgrade():
     op.add_column("pons", sa.Column("sla_breaches", sa.Integer(), server_default="0", nullable=False))
     op.create_index("idx_tasks_sla_due_at", "tasks", ["sla_due_at"]) 
     op.create_index("idx_tasks_breached", "tasks", ["breached"]) 
+    # Note: tasks table does not include assigned_org_id; do not create a composite index here
 
 
 def downgrade():

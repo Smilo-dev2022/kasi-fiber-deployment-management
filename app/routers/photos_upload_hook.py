@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
@@ -72,4 +72,18 @@ def register(payload: RegisterIn, db: Session = Depends(get_db)):
     p.within_geofence = within
     db.commit()
     return {"ok": True, "exif_ok": exif_ok, "within_geofence": within}
+
+
+@router.post("/upload", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "SMME"))])
+async def upload_photo(file: UploadFile = File(...)):
+    # Enforce content type and size
+    allowed_types = {"image/jpeg", "image/png"}
+    if file.content_type not in allowed_types:
+        raise HTTPException(415, "Unsupported Media Type")
+    max_bytes = 10 * 1024 * 1024
+    data = await file.read()
+    if len(data) > max_bytes:
+        raise HTTPException(413, "File too large")
+    # Caller should use signed URL path in production; this is basic fallback
+    return {"ok": True, "size": len(data), "content_type": file.content_type}
 

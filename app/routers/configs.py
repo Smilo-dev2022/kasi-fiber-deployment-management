@@ -16,6 +16,14 @@ from app.models.incident import Incident
 router = APIRouter(prefix="/configs", tags=["configs"])
 
 
+def _verify_source(request: Request):
+    allow_ips = os.getenv("OXIDIZED_ALLOW_IPS", "").split(",")
+    allow_ips = [ip.strip() for ip in allow_ips if ip.strip()]
+    if allow_ips:
+        ip = request.client.host if request.client else None
+        if ip not in allow_ips:
+            raise HTTPException(403, "IP not allowed")
+
 def _verify_hmac(request: Request, body: bytes):
     secret = os.getenv("OXIDIZED_HMAC_SECRET")
     if not secret:
@@ -30,6 +38,7 @@ def _verify_hmac(request: Request, body: bytes):
 
 @router.post("/oxidized", dependencies=[Depends(rate_limit("webhook:oxidized", 60, 60))])
 async def oxidized_webhook(request: Request, db: Session = Depends(get_db)):
+    _verify_source(request)
     raw = await request.body()
     _verify_hmac(request, raw)
     data = await request.json()

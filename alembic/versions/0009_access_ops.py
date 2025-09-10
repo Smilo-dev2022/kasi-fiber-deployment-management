@@ -115,6 +115,7 @@ def upgrade():
     op.add_column("incidents", sa.Column("severity_sla_minutes", sa.Integer(), nullable=True))
     op.add_column("incidents", sa.Column("due_at", sa.DateTime(timezone=True), nullable=True))
     op.create_index("idx_incidents_assigned_org", "incidents", ["assigned_org_id"]) 
+    op.create_index("idx_incidents_assigned_status_due", "incidents", ["assigned_org_id", "status", "due_at"]) 
 
     # Optional: enable RLS scaffolding on key tables (no policies defined here)
     op.execute("ALTER TABLE organizations ENABLE ROW LEVEL SECURITY")

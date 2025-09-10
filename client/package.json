@@ -23,6 +23,12 @@
   },
   "proxy": "http://localhost:5000",
   "scripts": {
+    "start": "REACT_APP_API_BASE=${REACT_APP_API_BASE:-} react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

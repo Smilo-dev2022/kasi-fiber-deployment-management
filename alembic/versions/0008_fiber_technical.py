@@ -92,6 +92,7 @@ def upgrade():
         sa.Column("passed", sa.Boolean(), server_default=sa.text("false"), nullable=False),
     )
     op.create_index("idx_lspm_plan_time", "lspm_results", ["test_plan_id", "tested_at"])
+    op.create_index("idx_certificate_acceptance_pon_checked", "certificate_acceptance", ["pon_id", "checked_at"]) 
 
 
 def downgrade():
