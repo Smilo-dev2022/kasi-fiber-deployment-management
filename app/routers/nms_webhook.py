@@ -24,15 +24,44 @@ def _verify_source(request: Request):
             raise HTTPException(403, "IP not allowed")
 
 
-def _verify_hmac(request: Request, body: bytes):
-    secret = os.getenv("NMS_HMAC_SECRET")
+def _verify_hmac(request: Request, body: bytes, secret_env_var: str | None = None):
+    # Determine which secret to use (per-source overrides allowed)
+    secret = None
+    if secret_env_var:
+        secret = os.getenv(secret_env_var)
+    if not secret:
+        secret = os.getenv("NMS_HMAC_SECRET")
+
+    # If no secret configured, skip verification to allow unsecured testing
     if not secret:
         return
-    sig = request.headers.get("X-Signature") or request.headers.get("X-Hub-Signature")
-    if not sig:
+
+    header_val = request.headers.get("X-Signature") or request.headers.get("X-Hub-Signature")
+    if not header_val:
         raise HTTPException(401, "Missing signature")
-    mac = hmac.new(secret.encode(), msg=body, digestmod=hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(sig, mac):
+
+    header_val = header_val.strip()
+    # Support formats like: "sha256=<hex>" or raw "<hex>"
+    if "=" in header_val:
+        alg, provided_hex = header_val.split("=", 1)
+        alg = alg.lower().strip()
+        provided_hex = provided_hex.strip()
+    else:
+        alg = "sha256"
+        provided_hex = header_val
+
+    # Currently support sha256 and sha1/sha512 fallbacks if supplied
+    if alg == "sha256":
+        digestmod = hashlib.sha256
+    elif alg == "sha1":
+        digestmod = hashlib.sha1
+    elif alg == "sha512":
+        digestmod = hashlib.sha512
+    else:
+        raise HTTPException(400, f"Unsupported signature algorithm: {alg}")
+
+    computed_hex = hmac.new(secret.encode(), msg=body, digestmod=digestmod).hexdigest()
+    if not hmac.compare_digest(provided_hex, computed_hex):
         raise HTTPException(401, "Invalid signature")
 
 
@@ -50,8 +79,7 @@ def _dedup_recent(db: Session, nms_ref: str, category: str, device_id):
 async def librenms(request: Request, db: Session = Depends(get_db)):
     _verify_source(request)
     raw = await request.body()
-    _verify_hmac(request, raw)
-    data = await request.json()
+    _verify_hmac(request, raw, "WEBHOOK_HMAC_LIBRENMS")
     data = await request.json()
     host = data.get("hostname")
     sev = data.get("severity", "critical").lower()
@@ -92,7 +120,7 @@ async def librenms(request: Request, db: Session = Depends(get_db)):
 async def zabbix(request: Request, db: Session = Depends(get_db)):
     _verify_source(request)
     raw = await request.body()
-    _verify_hmac(request, raw)
+    _verify_hmac(request, raw, "WEBHOOK_HMAC_ZABBIX")
     data = await request.json()
     host = data.get("host")
     sev = str(data.get("severity", "Average"))

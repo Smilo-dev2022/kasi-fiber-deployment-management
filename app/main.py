@@ -32,8 +32,8 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 
 app = FastAPI()
 
-# CORS allowlist
-origins_env = os.getenv("CORS_ALLOW_ORIGINS", "*")
+# CORS allowlist (support both CORS_ALLOW_ORIGINS and CORS_ALLOWED_ORIGINS)
+origins_env = os.getenv("CORS_ALLOW_ORIGINS") or os.getenv("CORS_ALLOWED_ORIGINS") or "*"
 allow_origins = [o.strip() for o in origins_env.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
