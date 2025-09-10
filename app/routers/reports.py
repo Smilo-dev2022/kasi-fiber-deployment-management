@@ -6,7 +6,7 @@ from uuid import uuid4
 from app.core.deps import get_db, require_roles
 from app.models.pon import PON
 from app.models.task import Task
-from app.models.cac import CACCheck
+from app.models.certificate_acceptance import CertificateAcceptance
 from app.models.smme import SMME
 from sqlalchemy import func, text
 
@@ -26,7 +26,7 @@ def weekly(payload: WeeklyIn, db: Session = Depends(get_db)):
     total = db.query(func.count(PON.id)).scalar()
     completed = db.query(func.count(PON.id)).filter(PON.status == "Completed").scalar()
     breaches = db.query(func.count(Task.id)).filter(Task.breached == True).scalar()
-    first_pass = db.query(func.count(CACCheck.id)).filter(CACCheck.passed == True).scalar()
+    first_pass = db.query(func.count(CertificateAcceptance.id)).filter(CertificateAcceptance.passed == True).scalar()
     smme_count = db.query(func.count(SMME.id)).scalar()
     url = f"https://example.local/reports/{uuid4()}.pdf"
     db.execute(
@@ -43,7 +43,7 @@ def weekly(payload: WeeklyIn, db: Session = Depends(get_db)):
             "pons_total": total,
             "pons_completed": completed,
             "sla_breaches": breaches,
-            "cac_first_pass": first_pass,
+            "certificate_acceptance_first_pass": first_pass,
             "smmes": smme_count,
         },
         "url": url,
