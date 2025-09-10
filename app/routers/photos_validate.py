@@ -38,7 +38,11 @@ def validate_photo(payload: ValidateIn, db: Session = Depends(get_db)):
     if not p.taken_at and not p.taken_ts:
         raise HTTPException(400, "Missing EXIF DateTime")
     ts = p.taken_ts or p.taken_at
-    p.exif_ok = abs((datetime.now(timezone.utc) - ts)) <= timedelta(hours=24)
+    # Allow override window via env HOURS_EXIF_WINDOW (default 24)
+    import os
+
+    hours = int(os.getenv("HOURS_EXIF_WINDOW", "24"))
+    p.exif_ok = abs((datetime.now(timezone.utc) - ts)) <= timedelta(hours=hours)
     if p.gps_lat is None or p.gps_lng is None:
         p.within_geofence = False
     else:

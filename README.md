@@ -15,11 +15,11 @@ A comprehensive web application for training and tracking Project Managers and S
 
 ## Technology Stack
 
-- **Backend**: Node.js with Express.js
+- **Backend**: FastAPI (Python) primary API, plus legacy Node.js (server/) optional
 - **Frontend**: React.js with Material-UI
-- **Database**: MongoDB (configurable)
-- **Authentication**: JWT tokens
-- **File Upload**: Multer for photo evidence
+- **Database**: PostgreSQL via SQLAlchemy
+- **Authentication**: Role header `X-Role` for FastAPI; JWT on legacy Node
+- **File Upload**: S3-compatible storage for photos
 - **Styling**: Material-UI components
 
 ## Project Structure
@@ -47,27 +47,18 @@ A comprehensive web application for training and tracking Project Managers and S
 - MongoDB (local or cloud instance)
 - npm or yarn
 
-### Backend Setup
-1. Install dependencies:
+### FastAPI Backend Setup
+1. Create and export environment variables as needed:
+   - `DATABASE_URL` (PostgreSQL)
+   - `CORS_ALLOWLIST` (comma-separated origins)
+   - `MAX_UPLOAD_MB` (default 10)
+   - `HOURS_EXIF_WINDOW` (default 24)
+   - `NMS_WHITELIST_IPS` and `NMS_WEBHOOK_SECRET`
+   - `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`
+2. Install Python deps and run:
    ```bash
-   npm install
-   ```
-
-2. Create environment file:
-   ```bash
-   cp .env.example .env
-   ```
-
-3. Configure environment variables in `.env`:
-   - `MONGODB_URI`: Your MongoDB connection string
-   - `JWT_SECRET`: Secret key for JWT tokens
-   - `PORT`: Server port (default: 5000)
-
-4. Start the server:
-   ```bash
-   npm start
-   # or for development with auto-reload:
-   npm run server
+   pip install -r requirements.txt
+   uvicorn app.main:app --host 0.0.0.0 --port 8000
    ```
 
 ### Frontend Setup
@@ -83,10 +74,7 @@ A comprehensive web application for training and tracking Project Managers and S
    ```
 
 ### Full Development Mode
-Run both backend and frontend simultaneously:
-```bash
-npm run dev
-```
+Run FastAPI and client separately; Node server optional.
 
 ## API Endpoints
 

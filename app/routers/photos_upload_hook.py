@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -48,8 +49,9 @@ def register(payload: RegisterIn, db: Session = Depends(get_db)):
     # Validate timing and geofence if PON has center
     exif_ok = False
     within = False
+    hours = int(os.getenv("HOURS_EXIF_WINDOW", "24"))
     if p.taken_ts:
-        exif_ok = abs((datetime.now(timezone.utc) - p.taken_ts)) <= timedelta(hours=24)
+        exif_ok = abs((datetime.now(timezone.utc) - p.taken_ts)) <= timedelta(hours=hours)
     pon: PON | None = db.get(PON, p.pon_id)
     if (
         pon

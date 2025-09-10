@@ -12,8 +12,14 @@ const app = express();
 connectDB();
 
 // Init Middleware
-app.use(express.json({ extended: false }));
-app.use(cors());
+app.use(express.json({ extended: false, limit: process.env.MAX_UPLOAD_MB ? `${process.env.MAX_UPLOAD_MB}mb` : '10mb' }));
+app.use(cors({
+  origin: (origin, cb) => {
+    const allow = (process.env.CORS_ALLOWLIST || '*').split(',').map(s => s.trim());
+    if (allow.includes('*') || (origin && allow.includes(origin))) return cb(null, true);
+    return cb(null, false);
+  }
+}));
 
 // Serve static files (for photo uploads)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

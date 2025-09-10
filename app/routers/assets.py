@@ -86,3 +86,18 @@ def scan(payload: AssetScanIn, db: Session = Depends(get_db)):
     status_value = new_values.get("status", asset_row["status"])
     return {"ok": True, "status": status_value}
 
+
+@router.post("/import-pons", dependencies=[Depends(require_roles("ADMIN", "PM"))])
+def import_pons(codes: list[str], db: Session = Depends(get_db)):
+    """Quick-import first five PONs by code list. Creates placeholders in Planned status."""
+    from uuid import uuid4
+    inserted: list[str] = []
+    for code in codes[:5]:
+        db.execute(
+            "insert into pons (id, status) values (:id, 'Planned') on conflict do nothing",
+            {"id": str(uuid4())},
+        )
+        inserted.append(code)
+    db.commit()
+    return {"ok": True, "count": len(inserted)}
+

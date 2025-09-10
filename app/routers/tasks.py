@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import timedelta
@@ -24,6 +25,16 @@ DEFAULT_SLA = {
     "Invoicing": 24 * 60,
 }
 
+# Allow env overrides, e.g., SLA_MINUTES_POLEPLANTING=2880
+for _step in list(DEFAULT_SLA.keys()):
+    env_key = f"SLA_MINUTES_{_step.upper()}"
+    try:
+        _val = os.getenv(env_key)
+        if _val:
+            DEFAULT_SLA[_step] = int(_val)
+    except Exception:
+        pass
+
 
 @router.patch("/{task_id}", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
 def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(get_db)):
@@ -40,8 +51,26 @@ def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(get_d
         task.sla_minutes = mins
         if task.started_at:
             task.sla_due_at = task.started_at + timedelta(minutes=mins)
-    if "status" in data and data["status"] == "Done" and task.sla_due_at and task.completed_at:
-        task.breached = task.completed_at > task.sla_due_at
+    # Block invalid closure without photo evidence for key steps
+    if "status" in data and data["status"] == "Done":
+        # Evidence required for these steps
+        required_steps = {"PolePlanting", "Stringing", "CAC"}
+        if task.step in required_steps:
+            from app.models.photo import Photo
+            has_photo = (
+                db.query(Photo)
+                .filter(
+                    Photo.pon_id == task.pon_id,
+                    Photo.exif_ok == True,
+                    Photo.within_geofence == True,
+                )
+                .first()
+                is not None
+            )
+            if not has_photo:
+                raise HTTPException(400, "Photo evidence (EXIF+geofence) required before closure")
+        if task.sla_due_at and task.completed_at:
+            task.breached = task.completed_at > task.sla_due_at
     db.commit()
     return {"ok": True, "breached": task.breached, "sla_due_at": task.sla_due_at}
 
