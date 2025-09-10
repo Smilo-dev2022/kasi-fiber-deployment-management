@@ -30,6 +30,8 @@ from app.routers import maintenance as maint_router
 from app.routers import configs as configs_router
 from app.routers import spares as spares_router
 from app.scheduler import init_jobs
+from app.routers import map_geo as map_router
+from app.routers import user_location as user_loc_router
 from app.core.health import router as health_router
 from app.core.limiter import env_ip_limiter
 
@@ -78,6 +80,9 @@ app.include_router(topo_router.router)
 app.include_router(maint_router.router)
 app.include_router(configs_router.router)
 app.include_router(spares_router.router)
+# Map and user location routers
+app.include_router(map_router.router)
+app.include_router(user_loc_router.router)
 # register health endpoints
 app.include_router(health_router)
 

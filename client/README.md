@@ -1,5 +1,20 @@
 # Getting Started with Create React App
 
+## Maps configuration
+
+Environment variables (Create React App):
+
+- `REACT_APP_MAPTILER_KEY` – your MapTiler API key
+- `REACT_APP_TILE_STYLE_URL` – optional style URL, defaults to MapTiler streets with key
+
+Example `.env.local`:
+
+```
+REACT_APP_MAPTILER_KEY=your_key
+REACT_APP_TILE_STYLE_URL=https://api.maptiler.com/maps/streets/style.json?key=${REACT_APP_MAPTILER_KEY}
+REACT_APP_API_BASE_URL=http://localhost:8000
+```
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts

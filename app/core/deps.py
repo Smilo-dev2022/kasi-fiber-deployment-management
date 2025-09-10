@@ -38,3 +38,15 @@ def require_roles(*allowed_roles: Sequence[str]) -> Callable:
 def get_db_session() -> Session:
     return SessionLocal()
 
+
+# Minimal current user dependency for endpoints that need a user id
+class _User:
+    def __init__(self, user_id: str):
+        self.id = user_id
+
+
+def get_current_user(x_user_id: str | None = Header(default=None, alias="X-User-Id")) -> _User:
+    if not x_user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return _User(x_user_id)
+

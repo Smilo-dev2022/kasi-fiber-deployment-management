@@ -18,7 +18,7 @@ A comprehensive web application for training and tracking Project Managers and S
 
 - **Core API**: Python 3.x, FastAPI, SQLAlchemy, Alembic, APScheduler
 - **Legacy API**: Node.js (Express), Mongoose, Nodemailer
-- **Frontend**: React (CRA) + MUI
+- **Frontend**: React (CRA) + MUI + MapLibre GL JS
 - **Datastores**: PostgreSQL (PostGIS), Redis, MongoDB (legacy)
 - **Object storage**: S3-compatible (MinIO for local dev)
 - **Email**: SMTP via Mailhog (local) or provider via env
@@ -95,7 +95,7 @@ npm install
 npm start
 ```
 
-The client proxies API calls to `http://localhost:5000` (Express). If you consume the FastAPI directly, point requests to `http://localhost:8000`.
+The client proxies API calls to `http://localhost:5000` (Express). If you consume the FastAPI directly, point requests to `http://localhost:8000`. The Map view can point directly to FastAPI via `REACT_APP_API_BASE_URL=http://localhost:8000`.
 
 ### Environment Variables
 Ensure production environment variables are set:
