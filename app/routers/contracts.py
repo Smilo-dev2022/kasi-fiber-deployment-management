@@ -5,6 +5,7 @@ from typing import List, Optional
 from uuid import uuid4
 from app.core.deps import get_db, require_roles
 from app.models.orgs import Contract
+from app.core.limiter import limiter, key_by_org
 
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])
@@ -24,7 +25,7 @@ class ContractIn(BaseModel):
     valid_to: Optional[str] = None
 
 
-@router.post("", dependencies=[Depends(require_roles("ADMIN", "PM"))])
+@router.post("", dependencies=[Depends(require_roles("ADMIN", "PM")), Depends(limiter(20, 60, key_by_org))])
 def create_contract(payload: ContractIn, db: Session = Depends(get_db)):
     data = payload.dict()
     data["id"] = uuid4()

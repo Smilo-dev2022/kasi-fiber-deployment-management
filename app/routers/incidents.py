@@ -7,12 +7,13 @@ from app.core.deps import get_db, require_roles
 from app.models.incident import Incident
 from app.schemas.incident import IncidentCreate, IncidentUpdate, IncidentOut
 from app.models.orgs import Contract, Assignment
+from app.core.limiter import limiter, key_by_org
 
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
 
 
-@router.get("", response_model=List[IncidentOut])
+@router.get("", response_model=List[IncidentOut], dependencies=[Depends(limiter(60, 60, key_by_org))])
 def list_incidents(db: Session = Depends(get_db), status: Optional[str] = Query(None), device_id: Optional[str] = Query(None)):
     q = db.query(Incident)
     if status:
