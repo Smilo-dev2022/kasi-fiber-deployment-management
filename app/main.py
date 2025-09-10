@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import tasks as tasks_router
-from app.routers import cac as cac_router
+from app.routers import certificate_acceptance as certacc_router
 from app.routers import pons_geofence as pons_geo_router
 from app.routers import photos_validate as photos_val_router
 from app.routers import assets as assets_router
@@ -48,7 +48,7 @@ app.add_middleware(
 )
 
 app.include_router(tasks_router.router)
-app.include_router(cac_router.router)
+app.include_router(certacc_router.router)
 app.include_router(pons_geo_router.router)
 app.include_router(photos_val_router.router)
 app.include_router(assets_router.router)

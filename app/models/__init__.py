@@ -1,5 +1,5 @@
 # Models package initializer
-from .cac import *
+from .certificate_acceptance import *
 from .device import *
 from .incident import *
 from .optical import *
