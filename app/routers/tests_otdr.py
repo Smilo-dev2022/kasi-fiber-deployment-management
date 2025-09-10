@@ -19,6 +19,8 @@ class OTDRIn(BaseModel):
     max_splice_loss_db: float | None = Field(default=None, ge=0.0, le=5.0)
     back_reflection_db: float | None = Field(default=None, ge=-80.0, le=-20.0)
     passed: bool = False
+    event_distance_m: float | None = None
+    cable_register_code: str | None = None
 
 
 @router.post("", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
@@ -45,7 +47,33 @@ def add_otdr(payload: OTDRIn, db: Session = Depends(get_db)):
         },
     )
     db.commit()
-    return {"ok": True, "id": oid}
+    snapped = None
+    if payload.event_distance_m and payload.cable_register_code:
+        try:
+            row = (
+                db.execute(
+                    text(
+                        """
+                        select gps_lat, gps_lng
+                        from cable_register
+                        where code = :c
+                        """
+                    ),
+                    {"c": payload.cable_register_code},
+                )
+                .mappings()
+                .first()
+            )
+            if row:
+                snapped = {"lat": row["gps_lat"], "lng": row["gps_lng"]}
+        except Exception:
+            snapped = None
+    return {"ok": True, "id": oid, "snapped": snapped}
+
+
+@router.post("/import", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
+def import_otdr(payload: OTDRIn, db: Session = Depends(get_db)):
+    return add_otdr(payload, db)
 
 
 @router.get("/by-plan/{plan_id}", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "AUDITOR"))])

@@ -49,3 +49,62 @@ def weekly(payload: WeeklyIn, db: Session = Depends(get_db)):
         "url": url,
     }
 
+
+@router.get("/uptime-by-ward", dependencies=[Depends(require_roles("ADMIN", "PM", "NOC", "AUDITOR"))])
+def uptime_by_ward(db: Session = Depends(get_db)):
+    rows = (
+        db.execute(
+            text(
+                """
+                select p.ward_id,
+                       count(*) filter (where i.status in ('Open','Acknowledged')) as active_incidents,
+                       count(*) as total_incidents
+                from pons p
+                left join incidents i on i.pon_id = p.id
+                group by p.ward_id
+                """
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return [dict(r) for r in rows]
+
+
+@router.get("/incidents-by-category", dependencies=[Depends(require_roles("ADMIN", "PM", "NOC", "AUDITOR"))])
+def active_incidents(db: Session = Depends(get_db)):
+    rows = (
+        db.execute(
+            text(
+                """
+                select category, assigned_org_id, count(*) as total
+                from incidents
+                where status in ('Open','Acknowledged')
+                group by category, assigned_org_id
+                """
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return [dict(r) for r in rows]
+
+
+@router.get("/sla-breaches", dependencies=[Depends(require_roles("ADMIN", "PM", "NOC", "AUDITOR"))])
+def sla_breaches(db: Session = Depends(get_db)):
+    rows = (
+        db.execute(
+            text(
+                """
+                select t.pon_id, count(*) as breaches
+                from tasks t
+                where t.breached = true
+                group by t.pon_id
+                """
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return [dict(r) for r in rows]
+
