@@ -10,7 +10,7 @@ from app.schemas.device import DeviceCreate, DeviceOut
 router = APIRouter(prefix="/devices", tags=["devices"])
 
 
-@router.get("", response_model=List[DeviceOut])
+@router.get("", response_model=List[DeviceOut], dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "NOC", "AUDITOR"))])
 def list_devices(db: Session = Depends(get_db), role: Optional[str] = Query(None), pon_id: Optional[str] = Query(None)):
     q = db.query(Device)
     if role:

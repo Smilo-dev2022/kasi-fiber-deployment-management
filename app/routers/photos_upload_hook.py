@@ -7,7 +7,7 @@ from uuid import UUID
 from app.core.deps import get_db, require_roles
 from app.models.photo import Photo
 from app.models.pon import PON
-from app.services.s3 import get_object_bytes
+from app.services.s3 import get_object_bytes, create_presigned_post
 from app.services.exif import parse_exif
 
 
@@ -17,6 +17,17 @@ router = APIRouter(prefix="/photos", tags=["photos"])
 class RegisterIn(BaseModel):
     photo_id: str
     s3_key: str
+class PresignIn(BaseModel):
+    key: str
+    content_type: str
+
+
+@router.post("/presign", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "SMME"))])
+def presign(payload: PresignIn):
+    if payload.content_type not in ALLOWED_CONTENT_TYPES:
+        raise HTTPException(415, "Unsupported file type")
+    resp = create_presigned_post(payload.key, payload.content_type, max_mb=10)
+    return resp
 
 
 def dist_m(a_lat, a_lng, b_lat, b_lng):
@@ -30,6 +41,9 @@ def dist_m(a_lat, a_lng, b_lat, b_lng):
     return 2 * R * asin(sqrt(h))
 
 
+ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "application/pdf"}
+
+
 @router.post("/register", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "SMME"))])
 def register(payload: RegisterIn, db: Session = Depends(get_db)):
     p: Photo | None = db.get(Photo, UUID(payload.photo_id))
@@ -38,6 +52,20 @@ def register(payload: RegisterIn, db: Session = Depends(get_db)):
 
     # Read from S3 and parse EXIF
     blob = get_object_bytes(payload.s3_key)
+    if len(blob) > 10 * 1024 * 1024:
+        raise HTTPException(413, "File too large (max 10 MB)")
+    # rudimentary type sniffing by header
+    import imghdr
+    kind = imghdr.what(None, h=blob[:32])
+    if kind == "jpeg":
+        ctype = "image/jpeg"
+    elif kind == "png":
+        ctype = "image/png"
+    else:
+        # allow pdf by magic number
+        ctype = "application/pdf" if blob[:4] == b"%PDF" else "application/octet-stream"
+    if ctype not in ALLOWED_CONTENT_TYPES:
+        raise HTTPException(415, "Unsupported file type")
     meta = parse_exif(blob)
 
     # Update photo with EXIF

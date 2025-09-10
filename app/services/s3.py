@@ -3,6 +3,7 @@ from functools import lru_cache
 from typing import Optional
 
 import boto3
+from botocore.client import Config
 
 
 class Settings:
@@ -25,6 +26,7 @@ def get_client():
         region_name=settings.S3_REGION,
         aws_access_key_id=settings.S3_ACCESS_KEY,
         aws_secret_access_key=settings.S3_SECRET_KEY,
+        config=Config(s3={"addressing_style": "path"}),
     )
 
 
@@ -38,4 +40,18 @@ def put_bytes(key: str, content_type: str, data: bytes) -> str:
     s3 = get_client()
     s3.put_object(Bucket=settings.S3_BUCKET, Key=key, Body=data, ContentType=content_type)
     return f"{settings.S3_ENDPOINT}/{settings.S3_BUCKET}/{key}".replace("http://", "https://")
+
+
+def create_presigned_post(key: str, content_type: str, max_mb: int = 10):
+    s3 = get_client()
+    conditions = [["content-length-range", 1, max_mb * 1024 * 1024], {"Content-Type": content_type}]
+    fields = {"Content-Type": content_type}
+    resp = s3.generate_presigned_post(
+        Bucket=settings.S3_BUCKET,
+        Key=key,
+        Fields=fields,
+        Conditions=conditions,
+        ExpiresIn=600,
+    )
+    return resp
 

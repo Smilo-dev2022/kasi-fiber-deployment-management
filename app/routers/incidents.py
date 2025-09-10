@@ -12,7 +12,7 @@ from app.models.orgs import Contract, Assignment
 router = APIRouter(prefix="/incidents", tags=["incidents"])
 
 
-@router.get("", response_model=List[IncidentOut])
+@router.get("", response_model=List[IncidentOut], dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "NOC", "AUDITOR"))])
 def list_incidents(db: Session = Depends(get_db), status: Optional[str] = Query(None), device_id: Optional[str] = Query(None)):
     q = db.query(Incident)
     if status:

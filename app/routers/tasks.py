@@ -41,8 +41,51 @@ def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(get_d
         task.sla_minutes = mins
         if task.started_at:
             task.sla_due_at = task.started_at + timedelta(minutes=mins)
-    if "status" in data and data["status"] == "Done" and task.sla_due_at and task.completed_at:
-        task.breached = task.completed_at > task.sla_due_at
+    if "status" in data and data["status"] == "Done":
+        # Gating: require at least one validated photo for key field steps
+        if task.step in ("PolePlanting", "CAC", "Stringing") and task.pon_id is not None:
+            from app.models.photo import Photo
+            ok_photo = (
+                db.query(Photo)
+                .filter(Photo.pon_id == task.pon_id)
+                .filter(Photo.exif_ok.is_(True))
+                .filter(Photo.within_geofence.is_(True))
+                .first()
+                is not None
+            )
+            if not ok_photo:
+                raise HTTPException(400, "Validated photo (EXIF+geofence) required for completion")
+        # Gating: invoicing requires tests passed per plan requirements
+        if task.step == "Invoicing" and task.pon_id is not None:
+            from sqlalchemy import text
+            row = db.execute(
+                text(
+                    """
+                with plans as (
+                  select id, otdr_required, lspm_required from test_plans where pon_id = :pid
+                ),
+                otdr_ok as (
+                  select count(*) ok from otdr_results where passed = true and test_plan_id in (select id from plans)
+                ),
+                lspm_ok as (
+                  select count(*) ok from lspm_results where passed = true and test_plan_id in (select id from plans)
+                )
+                select
+                  (select coalesce(sum(case when otdr_required then 1 else 0 end),0) from plans) as req_otdr,
+                  (select coalesce(sum(case when lspm_required then 1 else 0 end),0) from plans) as req_lspm,
+                  (select ok from otdr_ok) as have_otdr,
+                  (select ok from lspm_ok) as have_lspm
+                """
+                ),
+                {"pid": str(task.pon_id)},
+            ).mappings().first()
+            if row:
+                need_otdr = row["req_otdr"] > 0 and row["have_otdr"] <= 0
+                need_lspm = row["req_lspm"] > 0 and row["have_lspm"] <= 0
+                if need_otdr or need_lspm:
+                    raise HTTPException(400, "Required tests not yet passed for invoicing")
+        if task.sla_due_at and task.completed_at:
+            task.breached = task.completed_at > task.sla_due_at
     db.commit()
     return {"ok": True, "breached": task.breached, "sla_due_at": task.sla_due_at}
 
@@ -55,7 +98,7 @@ class WorkItem(BaseModel):
     sla_due_at: Optional[str]
 
 
-@router.get("/work-queue", response_model=List[WorkItem])
+@router.get("/work-queue", response_model=List[WorkItem], dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "NOC", "AUDITOR"))])
 def work_queue(db: Session = Depends(get_db), x_org_id: Optional[str] = Header(default=None, alias="X-Org-Id"), x_role: Optional[str] = Header(default=None, alias="X-Role")):
     if not x_org_id:
         raise HTTPException(400, "X-Org-Id required")

@@ -45,7 +45,7 @@ def create_batch(payload: AssetBatchIn, db: Session = Depends(get_db)):
     return {"codes": ids}
 
 
-@router.get("/qr/{code}")
+@router.get("/qr/{code}", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "AUDITOR"))])
 def qr_png(code: str):
     img = qrcode.make(code)
     buf = io.BytesIO()

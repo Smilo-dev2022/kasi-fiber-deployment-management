@@ -2,6 +2,9 @@ import os
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 from app.routers import tasks as tasks_router
 from app.routers import certificate_acceptance as certacc_router
@@ -24,6 +27,7 @@ from app.routers import splices as splices_router
 from app.routers import tests_plans as plans_router
 from app.routers import tests_otdr as otdr_router
 from app.routers import tests_lspm as lspm_router
+from app.routers import stringing_runs as stringing_router
 from app.routers import work_queue as workq_router
 from app.routers import topology as topo_router
 from app.routers import maintenance as maint_router
@@ -36,6 +40,19 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 
 app = FastAPI()
 
+
+class UploadLimitMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, max_bytes: int):
+        super().__init__(app)
+        self.max_bytes = max_bytes
+
+    async def dispatch(self, request: Request, call_next):
+        cl = request.headers.get("content-length")
+        if cl and cl.isdigit():
+            if int(cl) > self.max_bytes:
+                return Response("Payload too large", status_code=413)
+        return await call_next(request)
+
 # CORS allowlist
 origins_env = os.getenv("CORS_ALLOW_ORIGINS", "*")
 allow_origins = [o.strip() for o in origins_env.split(",") if o.strip()]
@@ -46,6 +63,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Cap uploads at 10 MB
+max_upload_mb = int(os.getenv("MAX_UPLOAD_MB", "10"))
+app.add_middleware(UploadLimitMiddleware, max_bytes=max_upload_mb * 1024 * 1024)
 
 app.include_router(tasks_router.router)
 app.include_router(certacc_router.router)
@@ -73,6 +94,7 @@ app.include_router(topo_router.router)
 app.include_router(maint_router.router)
 app.include_router(configs_router.router)
 app.include_router(spares_router.router)
+app.include_router(stringing_router.router)
 
 init_jobs()
 

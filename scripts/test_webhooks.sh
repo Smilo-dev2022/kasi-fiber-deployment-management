@@ -19,7 +19,7 @@ SIG=$(hmac_sha256_hex "$BODY_LIBRENMS" "$SECRET_LIBRENMS")
 curl -s -X POST "$URL_LIBRENMS" \
   -H "Content-Type: application/json" \
   -H "X-Signature: sha256=$SIG" \
-  -d "$BODY_LIBRENMS" | cat
+  -d "$BODY_LIBRENMS" | sed -e 's/{.*}/OK/g' || true
 echo
 
 echo "== Zabbix alert =="
@@ -28,7 +28,7 @@ SIG=$(hmac_sha256_hex "$BODY_ZABBIX" "$SECRET_ZABBIX")
 curl -s -X POST "$URL_ZABBIX" \
   -H "Content-Type: application/json" \
   -H "X-Signature: sha256=$SIG" \
-  -d "$BODY_ZABBIX" | cat
+  -d "$BODY_ZABBIX" | sed -e 's/{.*}/OK/g' || true
 echo
 
 echo "== Zabbix clear =="
@@ -37,7 +37,7 @@ SIG=$(hmac_sha256_hex "$BODY_ZABBIX_CLEAR" "$SECRET_ZABBIX")
 curl -s -X POST "$URL_ZABBIX" \
   -H "Content-Type: application/json" \
   -H "X-Signature: sha256=$SIG" \
-  -d "$BODY_ZABBIX_CLEAR" | cat
+  -d "$BODY_ZABBIX_CLEAR" | sed -e 's/{.*}/OK/g' || true
 echo
 
 echo "Done. Override URLs or secrets via env vars: URL_LIBRENMS, URL_ZABBIX, SECRET_LIBRENMS, SECRET_ZABBIX"
