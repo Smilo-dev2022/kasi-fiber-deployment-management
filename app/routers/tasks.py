@@ -5,6 +5,8 @@ from pydantic import BaseModel
 from typing import Optional
 from app.core.deps import get_db, require_roles
 from app.models.task import Task
+from app.models.pon import PON
+from app.services.routing import route_task
 
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -35,6 +37,11 @@ def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(get_d
     data = payload.dict(exclude_unset=True)
     for k, v in data.items():
         setattr(task, k, v)
+    # Auto-assign to contractor based on step and PON
+    if task.pon_id:
+        pon = db.get(PON, task.pon_id)
+        if pon:
+            route_task(db, task, pon)
     if "status" in data and data["status"] == "In Progress":
         mins = task.sla_minutes or DEFAULT_SLA.get(task.step, 24 * 60)
         task.sla_minutes = mins

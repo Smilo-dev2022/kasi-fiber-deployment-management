@@ -34,3 +34,11 @@ def require_roles(*allowed_roles: Sequence[str]) -> Callable:
 
     return checker
 
+
+class CurrentUser:
+    def __init__(self, org_id: str | None):
+        self.org_id = org_id
+
+
+def get_current_user(x_org_id: str | None = Header(default=None, alias="X-Org-Id")) -> CurrentUser:
+    return CurrentUser(org_id=x_org_id)

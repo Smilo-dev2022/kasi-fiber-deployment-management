@@ -12,4 +12,6 @@ class PON(Base):
     center_lng = Column(Numeric(9, 6), nullable=True)
     geofence_radius_m = Column(Integer, nullable=False, default=200, server_default="200")
     sla_breaches = Column(Integer, nullable=False, default=0, server_default="0")
+    pon_number = Column(String, nullable=True)
+    ward = Column(String, nullable=True)
 

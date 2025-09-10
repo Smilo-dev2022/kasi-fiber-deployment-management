@@ -100,3 +100,20 @@ create table if not exists sla_timer (
   breach_at timestamptz generated always as (started_at + make_interval(hours => target_hours)) stored
 );
 create index if not exists sla_open_idx on sla_timer(task_id) where stopped_at is null;
+
+-- seed helper for organizations and routing
+-- orgs
+-- insert into organizations (id, name, type) values
+-- (gen_random_uuid(), 'Main Civil Co', 'Civil'),
+-- (gen_random_uuid(), 'Tech Splice Co', 'Technical'),
+-- (gen_random_uuid(), 'Maint Ops Co', 'Maintenance');
+
+-- contracts
+-- insert into contracts (id, org_id, scope, wards, sla_minutes_p1, sla_minutes_p2, sla_minutes_p3, sla_minutes_p4)
+-- select gen_random_uuid(), id, 'Maintenance', array['48','49'], 120, 240, 1440, 4320 from organizations where name='Maint Ops Co';
+
+-- assignments by ward
+-- insert into assignments (id, org_id, scope, ward, priority)
+-- select gen_random_uuid(), id, 'Civil', '48', 10 from organizations where name='Main Civil Co';
+-- insert into assignments (id, org_id, scope, ward, priority)
+-- select gen_random_uuid(), id, 'Technical', '48', 10 from organizations where name='Tech Splice Co';
