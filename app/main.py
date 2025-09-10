@@ -36,6 +36,8 @@ from app.routers import photos_register_geofence as photos_geo_router
 from app.scheduler import init_jobs
 from app.core.health import router as health_router
 from app.core.limiter import env_ip_limiter
+from app.core.deps import get_db_session
+from sqlalchemy import text
 
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -95,6 +97,16 @@ init_jobs()
 async def _log_jobs():
     import logging
     logging.getLogger(__name__).info("APScheduler initialized with SLA scan, photo revalidate, weekly report")
+
+    # Wait for DB readiness briefly to avoid startup race conditions
+    import time
+    for _ in range(15):
+        try:
+            with get_db_session() as db:
+                db.execute(text("select 1"))
+            break
+        except Exception:
+            time.sleep(2)
 
 
 @app.middleware("http")

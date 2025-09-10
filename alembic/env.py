@@ -1,4 +1,5 @@
 import os
+import sys
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
@@ -24,11 +25,25 @@ def get_url() -> str:
     return url
 
 
+# Ensure project root is on PYTHONPATH when running Alembic CLI
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+# Import Base metadata and models so autogenerate can detect schema
+try:
+    from app.core.deps import Base  # type: ignore
+    import app.models  # noqa: F401  # ensure models are imported and mapped
+    target_metadata = Base.metadata
+except Exception:
+    target_metadata = None
+
+
 def run_migrations_offline() -> None:
     url = get_url()
     context.configure(
         url=url,
-        target_metadata=None,
+        target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -48,7 +63,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=None)
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

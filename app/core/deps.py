@@ -2,17 +2,34 @@ import os
 from typing import Generator, Callable, Sequence
 
 from fastapi import Header, HTTPException
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    # Default useful for local dev; override in production
-    "postgresql+psycopg2://postgres:postgres@localhost:5432/postgres",
+    "postgresql+psycopg2://app:app@localhost:5432/app",
 )
 
-engine = create_engine(DATABASE_URL, future=True)
+# Add basic connection retries on startup to handle container orchestration timing
+def _create_engine_with_retries(url: str):
+    import time
+    last_error: Exception | None = None
+    for attempt in range(1, 11):
+        try:
+            engine = create_engine(url, future=True)
+            # test connection quickly
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return engine
+        except Exception as e:  # noqa: BLE001
+            last_error = e
+            time.sleep(2)
+    if last_error:
+        raise last_error
+    return create_engine(url, future=True)
+
+engine = _create_engine_with_retries(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 Base = declarative_base()
