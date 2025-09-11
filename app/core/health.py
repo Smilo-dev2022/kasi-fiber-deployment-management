@@ -3,6 +3,7 @@ from sqlalchemy import text
 from app.core.deps import get_db_session
 from app.core.redis_client import ping_redis
 from app.services.s3 import s3_client, S3_BUCKET
+from app.services.supabase_client import get_supabase_client
 
 
 router = APIRouter(tags=["health"])
@@ -35,6 +36,14 @@ def readyz():
         s3.list_objects_v2(Bucket=S3_BUCKET, MaxKeys=1)
     except Exception as e:
         return Response(content=f"s3 not ready: {e}", status_code=503)
+    # Supabase
+    try:
+        sb = get_supabase_client()
+        if sb is None:
+            return Response(content="supabase client not initialized", status_code=503)
+        # No heavy call; ensure client exists
+    except Exception as e:
+        return Response(content=f"supabase not ready: {e}", status_code=503)
     return {"ok": True}
 
 
@@ -59,5 +68,12 @@ async def readyz_async():
         s3.list_objects_v2(Bucket=S3_BUCKET, MaxKeys=1)
     except Exception as e:
         return Response(content=f"s3 not ready: {e}", status_code=503)
+    # Supabase
+    try:
+        sb = get_supabase_client()
+        if sb is None:
+            return Response(content="supabase client not initialized", status_code=503)
+    except Exception as e:
+        return Response(content=f"supabase not ready: {e}", status_code=503)
     return {"ok": True}
 
