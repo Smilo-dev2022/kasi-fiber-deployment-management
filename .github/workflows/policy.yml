@@ -1,0 +1,25 @@
+name: policy
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  administration: read
+  security-events: read
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq | cat
+      - name: Run policy check
+        env:
+          GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN || secrets.GITHUB_TOKEN }}
+        run: bash scripts/enforce_github_policies.sh

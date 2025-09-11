@@ -1,0 +1,19 @@
+# Replace placeholder teams with your actual org teams
+* @your-org/security @your-org/engineering-leads
+
+# Security-related changes
+.github/** @your-org/security
+docs/** @your-org/security
+
+# Backend ownership
+app/** @your-org/backend
+server/** @your-org/backend
+
+# Frontend ownership
+client/** @your-org/frontend
+
+# Database & migrations
+alembic/** @your-org/backend
+supabase/** @your-org/backend
+sql/** @your-org/backend
+

@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Tenant Brand Schema",
+  "type": "object",
+  "required": ["name", "logo", "colors", "domain"],
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "logo": { "type": "string", "format": "uri" },
+    "colors": {
+      "type": "object",
+      "required": ["primary", "secondary"],
+      "properties": {
+        "primary": { "type": "string", "pattern": "^#?[0-9a-fA-F]{6}$" },
+        "secondary": { "type": "string", "pattern": "^#?[0-9a-fA-F]{6}$" },
+        "accent": { "type": "string", "pattern": "^#?[0-9a-fA-F]{6}$" }
+      },
+      "additionalProperties": false
+    },
+    "domain": { "type": "string" },
+    "pdf": {
+      "type": "object",
+      "properties": {
+        "headerText": { "type": "string" },
+        "footerText": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+
