@@ -1,6 +1,6 @@
 import os
 import logging
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import tasks as tasks_router
@@ -78,7 +78,7 @@ app.include_router(otdr_router.router)
 app.include_router(lspm_router.router)
 app.include_router(
     nms_router.router,
-    dependencies=[env_ip_limiter()],
+    dependencies=[Depends(env_ip_limiter())],
 )
 app.include_router(workq_router.router)
 app.include_router(topo_router.router)
@@ -100,15 +100,19 @@ async def _log_jobs():
     import logging
     logging.getLogger(__name__).info("APScheduler initialized with SLA scan, photo revalidate, weekly report")
 
-    # Wait for DB readiness briefly to avoid startup race conditions
-    import time
-    for _ in range(15):
-        try:
-            with get_db_session() as db:
-                db.execute(text("select 1"))
-            break
-        except Exception:
-            time.sleep(2)
+    # Optionally skip DB readiness loop for constrained envs
+    import os
+    skip = os.getenv("DB_SKIP_STARTUP_TESTS", "false").lower() in ("1", "true", "yes")
+    if not skip:
+        # Wait for DB readiness briefly to avoid startup race conditions
+        import time
+        for _ in range(15):
+            try:
+                with get_db_session() as db:
+                    db.execute(text("select 1"))
+                break
+            except Exception:
+                time.sleep(2)
 
 
 @app.middleware("http")

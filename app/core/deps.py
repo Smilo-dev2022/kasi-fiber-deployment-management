@@ -9,12 +9,20 @@ from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+psycopg2://app:app@localhost:5432/app",
+    "postgresql+psycopg://app:app@localhost:5432/app",
 )
+
+# Allow local development to skip eager DB connectivity checks so the API can boot
+# even when a database service is not available (e.g., limited CI or sandbox).
+DB_SKIP_STARTUP_TESTS = os.getenv("DB_SKIP_STARTUP_TESTS", "false").lower() in ("1", "true", "yes")
 
 # Add basic connection retries on startup to handle container orchestration timing
 def _create_engine_with_retries(url: str):
     import time
+    if DB_SKIP_STARTUP_TESTS:
+        # Create engine without testing connectivity; connections will be attempted lazily
+        return create_engine(url, future=True)
+
     last_error: Exception | None = None
     for attempt in range(1, 11):
         try:

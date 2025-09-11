@@ -143,7 +143,7 @@ docker compose -f infra/docker-compose.yml up -d db redis minio mailhog
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-export DATABASE_URL="postgresql+psycopg2://app:app@localhost:5432/app"
+export DATABASE_URL="postgresql+psycopg://app:app@localhost:5432/app"
 export CORS_ALLOW_ORIGINS="http://localhost:3000"
 export S3_ENDPOINT="http://localhost:9000"
 export S3_REGION="us-east-1"
@@ -227,7 +227,7 @@ export $(cat .env.staging | xargs) && python scripts/setup_minio.py
 Key environment variables (see also `docs/secrets.md`):
 
 - Core API (FastAPI)
-  - `DATABASE_URL` (e.g., `postgresql+psycopg2://app:app@localhost:5432/app`)
+  - `DATABASE_URL` (e.g., `postgresql+psycopg://app:app@localhost:5432/app`)
   - `CORS_ALLOW_ORIGINS` (comma-separated list or `*`)
   - `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`
 
