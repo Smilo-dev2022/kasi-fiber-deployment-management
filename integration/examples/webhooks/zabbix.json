@@ -1,0 +1,8 @@
+{
+"host": "olt-01",
+"severity": "P1",
+"event": "opticalPowerLow",
+"problem": "PON1 power low",
+"ts": 1700000000
+}
+
