@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/brand.schema.json",
+  "title": "Tenant Brand",
+  "type": "object",
+  "required": ["tenantId", "displayName", "primaryColor", "domain"],
+  "properties": {
+    "tenantId": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "primaryColor": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" },
+    "secondaryColor": { "type": "string", "pattern": "^#([0-9a-fA-F]{6})$" },
+    "logoLight": { "type": "string", "format": "uri" },
+    "logoDark": { "type": "string", "format": "uri" },
+    "domain": { "type": "string", "format": "hostname" },
+    "pdf": {
+      "type": "object",
+      "properties": {
+        "headerLogo": { "type": "string", "format": "uri" },
+        "footerText": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

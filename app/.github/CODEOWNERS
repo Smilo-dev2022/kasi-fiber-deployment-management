@@ -1,0 +1,8 @@
+# Require review from code owners for changes in protected areas.
+# Replace ORG and team names with your actual org/team handles.
+
+* @ORG/engineering-leads
+.github/ @ORG/release-eng
+docs/ @ORG/docs
+scripts/ @ORG/release-eng
+
