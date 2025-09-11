@@ -1,0 +1,18 @@
+# General
+.DS_Store
+*.log
+node_modules/
+dist/
+build/
+.env
+.venv/
+.pytest_cache/
+__pycache__/
+
+# Docker
+*.tar
+
+# IDE
+.idea/
+.vscode/
+

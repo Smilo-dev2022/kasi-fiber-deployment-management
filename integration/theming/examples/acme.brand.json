@@ -1,0 +1,14 @@
+{
+  "$schema": "./../brand.schema.json",
+  "tenantId": "acme",
+  "displayName": "Acme Corp",
+  "primaryColor": "#1E88E5",
+  "secondaryColor": "#FFC107",
+  "logoLight": "https://cdn.example.com/acme/logo-light.png",
+  "logoDark": "https://cdn.example.com/acme/logo-dark.png",
+  "domain": "app.acme.com",
+  "pdf": {
+    "headerLogo": "https://cdn.example.com/acme/pdf-header.png",
+    "footerText": "© Acme Corp"
+  }
+}
