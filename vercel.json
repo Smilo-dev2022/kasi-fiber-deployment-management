@@ -1,6 +1,13 @@
 {
+  "builds": [
+    { "src": "client/package.json", "use": "@vercel/static-build", "config": { "distDir": "build" } }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "https://api.example.com/$1" }
+  ],
+  "routes": [
+    { "src": "/(.*)\\.(css|js|png|jpg|jpeg|gif|svg|ico|txt|json|webp|map)", "dest": "/$1.$2" },
+    { "src": "/(?!api/).*", "dest": "/index.html" }
   ]
 }
 
