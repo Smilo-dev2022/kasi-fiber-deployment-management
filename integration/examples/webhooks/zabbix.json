@@ -1,0 +1,9 @@
+{
+  "host": "OLT-01",
+  "severity": "High",
+  "event_id": "8888",
+  "problem": true,
+  "name": "PON1 LOS",
+  "message": "ONU flaps on PON1"
+}
+

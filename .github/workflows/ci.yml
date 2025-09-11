@@ -4,6 +4,85 @@ on:
   push:
     branches: [ main ]
   pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U app -d app" --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+      minio:
+        image: minio/minio:latest
+        ports: ["9000:9000", "9001:9001"]
+        env:
+          MINIO_ROOT_USER: minio
+          MINIO_ROOT_PASSWORD: change-me
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/ready || exit 1" --health-interval 10s --health-timeout 5s --health-retries 12
+        command: server /data --console-address ":9001"
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Wait for Postgres
+        run: |
+          for i in {1..30}; do pg_isready -h localhost -p 5432 -U app -d app && break || sleep 2; done
+      - name: Init DB
+        env:
+          DATABASE_URL: postgresql+psycopg2://app:app@localhost:5432/app
+        run: alembic upgrade head
+      - name: Setup MinIO bucket
+        env:
+          S3_ENDPOINT: http://localhost:9000
+          S3_REGION: us-east-1
+          S3_BUCKET: fiber-photos
+          S3_ACCESS_KEY: minio
+          S3_SECRET_KEY: change-me
+        run: python scripts/setup_minio.py
+      - name: Lint
+        run: |
+          python -m pip install ruff
+          ruff check app || true
+      - name: Health smoke
+        env:
+          DATABASE_URL: postgresql+psycopg2://app:app@localhost:5432/app
+          REDIS_URL: redis://localhost:6379/0
+          S3_ENDPOINT: http://localhost:9000
+          S3_REGION: us-east-1
+          S3_BUCKET: fiber-photos
+          S3_ACCESS_KEY: minio
+          S3_SECRET_KEY: change-me
+        run: |
+          uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+          PID=$!
+          for i in {1..30}; do curl -fsS http://127.0.0.1:8000/healthz && break || sleep 2; done
+          curl -fsS http://127.0.0.1:8000/readyz | cat
+          kill $$PID || true
+
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
 
 permissions:
   contents: read

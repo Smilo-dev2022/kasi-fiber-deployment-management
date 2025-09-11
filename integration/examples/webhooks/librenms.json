@@ -1,0 +1,9 @@
+{
+  "hostname": "OLT-01",
+  "severity": "critical",
+  "rule": "Device Down",
+  "alert_id": 12345,
+  "state": "alert",
+  "msg": "OLT-01 no response"
+}
+
