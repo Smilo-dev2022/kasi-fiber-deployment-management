@@ -11,7 +11,7 @@ import {
   Alert,
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
-import axios from 'axios';
+import { api } from '../../api/client';
 
 const TaskList = () => {
   const [tasks, setTasks] = useState([]);
@@ -28,7 +28,7 @@ const TaskList = () => {
           },
         };
 
-        const res = await axios.get('/api/tasks', config);
+        const res = await api.get('/tasks', config);
         setTasks(res.data);
         setLoading(false);
       } catch (err) {

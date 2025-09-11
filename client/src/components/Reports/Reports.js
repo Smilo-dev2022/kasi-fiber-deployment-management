@@ -10,7 +10,7 @@ import {
   Alert,
 } from '@mui/material';
 import { Download as DownloadIcon } from '@mui/icons-material';
-import axios from 'axios';
+import { api } from '../../api/client';
 
 const Reports = () => {
   const [ponData, setPonData] = useState([]);
@@ -29,8 +29,8 @@ const Reports = () => {
         };
 
         const [ponRes, taskRes] = await Promise.all([
-          axios.get('/api/reports/pons', config),
-          axios.get('/api/reports/tasks', config),
+          api.get('/reports/pons', config),
+          api.get('/reports/tasks', config),
         ]);
 
         setPonData(ponRes.data);
@@ -55,7 +55,7 @@ const Reports = () => {
         responseType: 'blob',
       };
 
-      const res = await axios.get(`/api/reports/export/${type}`, config);
+      const res = await api.get(`/reports/export/${type}`, config);
       
       // Create download link
       const url = window.URL.createObjectURL(new Blob([res.data]));

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { api } from '../../api/client';
 
 const SA_BBOX = [16.45, -34.84, 32.89, -22.13];
 
@@ -12,7 +13,7 @@ export default function MapScreen() {
     if (map) return;
     const m = new maplibregl.Map({
       container: mapRef.current,
-      style: '/map/tiles?token=' + (window.localStorage.getItem('TILES_TOKEN') || ''),
+      style: (process.env.REACT_APP_API_BASE_URL || '/api') + '/map/tiles?token=' + (window.localStorage.getItem('TILES_TOKEN') || ''),
       center: [24.25, -30.0],
       zoom: 5,
       maxZoom: 16,
@@ -21,7 +22,8 @@ export default function MapScreen() {
 
     m.on('load', async () => {
       // Wards fill/border styling
-      const wards = await fetch('/map/wards').then(r => r.json());
+      const base = process.env.REACT_APP_API_BASE_URL || '/api';
+      const wards = await fetch(base + '/map/wards').then(r => r.json());
       m.addSource('wards', { type: 'geojson', data: wards });
       m.addLayer({ id: 'wards-fill', type: 'fill', source: 'wards', paint: { 'fill-color': '#CFE8FF', 'fill-opacity': 0.25 } });
       m.addLayer({ id: 'wards-line', type: 'line', source: 'wards', paint: { 'line-color': '#3A7ABF', 'line-width': 1 } });
