@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import axios from 'axios';
+import { api, setAuthToken } from '../api/client';
 
 const AuthContext = createContext();
 
@@ -58,11 +58,11 @@ export const AuthProvider = ({ children }) => {
   // Load user
   const loadUser = async () => {
     if (localStorage.token) {
-      axios.defaults.headers.common['x-auth-token'] = localStorage.token;
+      setAuthToken(localStorage.token);
     }
 
     try {
-      const res = await axios.get('/api/auth/user');
+      const res = await api.get('/auth/user');
       dispatch({
         type: 'USER_LOADED',
         payload: res.data,
@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }) => {
   // Login user
   const login = async (formData) => {
     try {
-      const res = await axios.post('/api/auth/login', formData);
+      const res = await api.post('/auth/login', formData);
       dispatch({
         type: 'LOGIN_SUCCESS',
         payload: res.data,
@@ -94,7 +94,7 @@ export const AuthProvider = ({ children }) => {
   // Register user
   const register = async (formData) => {
     try {
-      const res = await axios.post('/api/auth/register', formData);
+      const res = await api.post('/auth/register', formData);
       dispatch({
         type: 'REGISTER_SUCCESS',
         payload: res.data,

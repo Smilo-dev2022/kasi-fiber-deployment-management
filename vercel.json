@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://YOUR_API_BASE_URL/$1" }
+  ]
+}
+

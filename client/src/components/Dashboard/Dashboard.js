@@ -14,7 +14,7 @@ import {
   CheckCircle as CompletedIcon,
   Schedule as PendingIcon,
 } from '@mui/icons-material';
-import axios from 'axios';
+import { api } from '../../api/client';
 
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
@@ -33,8 +33,8 @@ const Dashboard = () => {
         };
 
         const [res, opsRes] = await Promise.all([
-          axios.get('/api/reports/dashboard', config),
-          axios.get('/api/reports/ops', config)
+          api.get('/reports/dashboard', config),
+          api.get('/reports/ops', config)
         ]);
         setStats(res.data);
         setOps(opsRes.data);

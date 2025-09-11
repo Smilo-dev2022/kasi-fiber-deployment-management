@@ -11,7 +11,7 @@ import {
   Alert,
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
-import axios from 'axios';
+import { api } from '../../api/client';
 
 const PONList = () => {
   const [pons, setPons] = useState([]);
@@ -28,7 +28,7 @@ const PONList = () => {
           },
         };
 
-        const res = await axios.get('/api/pons', config);
+        const res = await api.get('/pons', config);
         setPons(res.data);
         setLoading(false);
       } catch (err) {

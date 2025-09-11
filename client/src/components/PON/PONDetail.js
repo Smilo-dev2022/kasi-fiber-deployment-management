@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Typography, Card, CardContent, Grid, Box, Chip, CircularProgress, Alert } from '@mui/material';
-import axios from 'axios';
+import { api } from '../../api/client';
 
 const PONDetail = () => {
   const { id } = useParams();
@@ -17,9 +17,9 @@ const PONDetail = () => {
     async function load() {
       try {
         const [ponRes, incRes, optRes] = await Promise.all([
-          axios.get(`/api/pons/${id}`, config),
-          axios.get(`/api/incidents?pon=${id}&status=open`, config),
-          axios.get(`/api/optics?pon=${id}&days=7`, config),
+          api.get(`/pons/${id}`, config),
+          api.get(`/incidents?pon=${id}&status=open`, config),
+          api.get(`/optics?pon=${id}&days=7`, config),
         ]);
         setPon(ponRes.data.pon || ponRes.data);
         setIncidents(incRes.data);
