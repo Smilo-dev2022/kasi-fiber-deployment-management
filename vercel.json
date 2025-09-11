@@ -1,6 +1,8 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://YOUR_API_BASE_URL/$1" }
+    { "source": "/api/(.*)", "destination": "https://YOUR_API_BASE_URL/$1" },
+    { "source": "/(healthz|readyz)", "destination": "https://YOUR_API_BASE_URL/$1" },
+    { "source": "/map/(.*)", "destination": "https://YOUR_API_BASE_URL/map/$1" }
   ]
 }
 

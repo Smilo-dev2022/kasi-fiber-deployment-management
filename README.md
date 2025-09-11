@@ -63,6 +63,21 @@ A comprehensive web application for training and tracking Project Managers and S
 - **Domain expansion**: Organizations, contracts, assignments, incidents, devices, optical tests (OTDR/LSPM), work queue, topology, maintenance, spares, rate cards, pay sheets, reports
 - **Legacy Node API retained**: Express + MongoDB service (`server/`) with SLA email monitor and existing routes; CRA client continues to proxy to `:5000`
 
+### Capabilities
+
+- Health and readiness: `/healthz`, `/readyz` verify DB, Redis, S3
+- Org scoping and role checks enforced on routers via `require_roles`
+- PON management and geofencing (center/radius or polygon)
+- Photo evidence gates: EXIF time window and geofence validation
+- Certificate of Acceptance (CAC) with validated photo requirement
+- Technical gates: Test Plans, OTDR, LSPM (gates for invoicing readiness)
+- Incidents intake via secured webhooks (HMAC + IP allowlist), SLA routing to org work queue
+- Work queue filtered by org assignments, SLA due
+- Maps: wards and PON assets rendering via PostGIS-backed GeoJSON
+- Finance: SMME pay sheet PDF generation and S3 storage link
+- Stock/spares issue/return and movement tracking
+- `/readyz` returns 200 only when DB, Redis, S3 checks pass
+
 ## Technology Stack
 
 - **Core API**: Python 3.x, FastAPI, SQLAlchemy, Alembic, APScheduler
@@ -145,6 +160,16 @@ npm start
 ```
 
 The client proxies API calls to `http://localhost:5000` (Express). If you consume the FastAPI directly, point requests to `http://localhost:8000`.
+
+### Makefile shortcuts
+
+```bash
+make up            # Start docker compose and wait for readyz
+make db            # Alembic upgrade head
+make seed          # Load pilot seed data
+make testplan      # Run smoke tests; see TESTPLAN.md for full curl
+make openapi       # Export openapi.json
+```
 
 ### Environment Variables
 Ensure production environment variables are set:
