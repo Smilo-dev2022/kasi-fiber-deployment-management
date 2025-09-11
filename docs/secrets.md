@@ -2,6 +2,7 @@
 
 ## Staging Secret Names
 - SECRET_STAGING_JWT
+- SECRET_STAGING_JWT_LEGACY (optional)
 - SECRET_STAGING_HMAC_LIBRENMS
 - SECRET_STAGING_HMAC_ZABBIX
 - SECRET_STAGING_SENTRY_DSN
@@ -14,6 +15,7 @@
 ## Production Secret Names
 - SECRET_PROD_DATABASE_URL
 - SECRET_PROD_JWT
+- SECRET_PROD_JWT_LEGACY (optional)
 - SECRET_PROD_HMAC_LIBRENMS
 - SECRET_PROD_HMAC_ZABBIX
 - SECRET_PROD_S3_ACCESS_KEY
@@ -28,6 +30,7 @@
 
 ## Guidance
 - JWT and HMAC secrets: generate strong random values (e.g., 32+ bytes hex)
+- For legacy JWT acceptance, set `JWT_SECRET_LEGACY` to your prior secret. If your old secret was stored base64-encoded, it will be tried both as-is and after base64 decoding.
 - S3 access/secret keys: from your object storage/credentials system
 - Sentry DSN: from your Sentry project settings
 - SMTP host/user/pass: from your email provider

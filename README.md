@@ -187,6 +187,7 @@ export $(cat .env.staging | xargs) && python scripts/setup_minio.py
 - `NODE_ENV=production`
 - `MONGODB_URI` (production database)
 - `JWT_SECRET` (strong secret key)
+- `JWT_SECRET_LEGACY` (optional; previous secret to accept old tokens; base64 supported)
 
 ## Configuration & Environment
 
@@ -198,7 +199,7 @@ Key environment variables (see also `docs/secrets.md`):
   - `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`
 
 - Legacy API (Express)
-  - `MONGODB_URI`, `JWT_SECRET`, `PORT` (default 5000)
+  - `MONGODB_URI`, `JWT_SECRET`, `JWT_SECRET_LEGACY`, `PORT` (default 5000)
   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`
   - `DISABLE_SLA_MONITOR`, `SLA_MONITOR_INTERVAL_MS`
 
