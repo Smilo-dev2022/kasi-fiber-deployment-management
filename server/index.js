@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
 require('dotenv').config();
 
@@ -12,8 +13,15 @@ const app = express();
 connectDB();
 
 // Init Middleware
+app.use(helmet({
+  contentSecurityPolicy: false,
+}));
 app.use(express.json({ extended: false }));
-app.use(cors());
+const allowOrigins = (process.env.CORS_ALLOW_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+app.use(cors({
+  origin: allowOrigins.length ? allowOrigins : '*',
+  credentials: true,
+}));
 
 // Serve static files (for photo uploads)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
