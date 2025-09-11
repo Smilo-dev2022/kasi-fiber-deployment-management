@@ -1,0 +1,22 @@
+# Minimal Supabase CLI configuration
+# Docs: https://supabase.com/docs/reference/cli/config
+
+[project]
+id = ""  # Set to your project ref, e.g. "abcd1234"
+name = "local"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+max_rows = 1000
+
+[db]
+version = "15"
+shadow_port = 54322
+port = 54323
+major_version = 15
+
+[functions]
+verify_jwt = false
+
