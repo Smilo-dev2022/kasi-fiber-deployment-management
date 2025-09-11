@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from uuid import uuid4
 from app.core.deps import get_db, require_roles
 from app.core.limiter import env_org_limiter
+from app.core.cache import cache_get, cache_set
 from app.models.pon import PON
 from app.models.task import Task
 from app.models.certificate_acceptance import CertificateAcceptance
@@ -24,6 +25,10 @@ class WeeklyIn(BaseModel):
 def weekly(payload: WeeklyIn, db: Session = Depends(get_db)):
     start = payload.start or (date.today() - timedelta(days=7))
     end = payload.end or date.today()
+    cache_key = f"weekly:{start}:{end}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
     total = db.query(func.count(PON.id)).scalar()
     completed = db.query(func.count(PON.id)).filter(PON.status == "Completed").scalar()
     breaches = db.query(func.count(Task.id)).filter(Task.breached == True).scalar()
@@ -37,7 +42,7 @@ def weekly(payload: WeeklyIn, db: Session = Depends(get_db)):
         {"s": start, "e": end, "u": url},
     )
     db.commit()
-    return {
+    resp = {
         "period_start": str(start),
         "period_end": str(end),
         "kpis": {
@@ -49,4 +54,6 @@ def weekly(payload: WeeklyIn, db: Session = Depends(get_db)):
         },
         "url": url,
     }
+    cache_set(cache_key, resp, ttl_seconds=60)
+    return resp
 

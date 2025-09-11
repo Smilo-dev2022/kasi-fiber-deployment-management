@@ -4,6 +4,7 @@ from sqlalchemy import text
 from uuid import uuid4
 from pydantic import BaseModel, Field
 from app.core.deps import get_db, require_roles
+from sqlalchemy import and_
 
 
 router = APIRouter(prefix="/tests/plans", tags=["tests"])

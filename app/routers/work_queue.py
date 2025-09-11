@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
-from app.core.deps import get_db
+from app.core.deps import get_db, require_roles
 from app.models.task import Task
 from app.models.orgs import Assignment
 
@@ -18,16 +18,18 @@ class WorkItem(BaseModel):
     sla_due_at: Optional[str]
 
 
-@router.get("/work-queue", response_model=List[WorkItem])
-def work_queue(db: Session = Depends(get_db), x_org_id: Optional[str] = Header(default=None, alias="X-Org-Id"), x_role: Optional[str] = Header(default=None, alias="X-Role")):
-    if not x_org_id:
-        raise HTTPException(400, "X-Org-Id required")
-    if x_role == "SalesAgent":
+@router.get("/work-queue", response_model=List[WorkItem], dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "SMME", "AUDITOR"))])
+def work_queue(request: Request, db: Session = Depends(get_db)):
+    org_id = getattr(request.state, "org_id", None)
+    role = (getattr(request.state, "jwt_claims", {}) or {}).get("role")
+    if not org_id:
+        raise HTTPException(400, "Org not found in token")
+    if role == "SalesAgent":
         return []
     q = db.query(Task)
     assigned_steps = (
         db.query(Assignment.step_type)
-        .filter(Assignment.org_id == x_org_id)
+        .filter(Assignment.org_id == org_id)
         .distinct()
         .all()
     )

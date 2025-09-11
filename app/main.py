@@ -110,12 +110,17 @@ async def _log_jobs():
 
 
 @app.middleware("http")
-async def add_org_to_state(request: Request, call_next):
-    # Read org id from header to support per-org rate limiting
+async def attach_claims_to_state(request: Request, call_next):
+    # Populate request.state with JWT claims early for downstream deps and limiters
     try:
-        org_id = request.headers.get("X-Org-Id")
-        if org_id:
-            request.state.org_id = org_id
+        from app.core.auth import decode_bearer_token, extract_org_from_claims
+        authz = request.headers.get("Authorization")
+        claims = decode_bearer_token(authz)
+        if claims:
+            request.state.jwt_claims = claims
+            org_id = extract_org_from_claims(claims)
+            if org_id:
+                request.state.org_id = org_id
     except Exception:
         pass
     return await call_next(request)

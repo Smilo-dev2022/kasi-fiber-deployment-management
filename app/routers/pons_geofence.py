@@ -51,3 +51,49 @@ def set_geofence_polygon(pon_id: str, payload: PolyIn, db: Session = Depends(get
     db.commit()
     return {"ok": True}
 
+
+class StatusIn(BaseModel):
+    status: str
+
+
+def _pon_tests_passed(db: Session, pon_id: str) -> bool:
+    # A PON is considered test-passed when for every plan:
+    #  - if otdr_required then an OTDR result with passed=true exists
+    #  - if lspm_required then an LSPM result with passed=true exists
+    sql = text(
+        """
+        with plans as (
+          select id, otdr_required, lspm_required from test_plans where pon_id = :p
+        ), otdr_ok as (
+          select tp.id as plan_id, exists (
+            select 1 from otdr_results orr where orr.test_plan_id = tp.id and orr.passed = true
+          ) as ok
+          from plans tp
+        ), lspm_ok as (
+          select tp.id as plan_id, exists (
+            select 1 from lspm_results lrr where lrr.test_plan_id = tp.id and lrr.passed = true
+          ) as ok
+          from plans tp
+        )
+        select coalesce(bool_and(case when p.otdr_required then o.ok else true end) 
+                      and bool_and(case when p.lspm_required then l.ok else true end), true) as all_ok
+        from plans p
+        left join otdr_ok o on o.plan_id = p.id
+        left join lspm_ok l on l.plan_id = p.id
+        """
+    )
+    row = db.execute(sql, {"p": pon_id}).mappings().first()
+    return bool(row and row["all_ok"]) if row is not None else True
+
+
+@router.patch("/{pon_id}/status", dependencies=[Depends(require_roles("ADMIN", "PM"))])
+def set_status(pon_id: str, payload: StatusIn, db: Session = Depends(get_db)):
+    # If moving to Completed or ReadyForInvoice, enforce test plan checks
+    target = (payload.status or "").strip()
+    if target in ("Completed", "ReadyForInvoice"):
+        if not _pon_tests_passed(db, pon_id):
+            raise HTTPException(400, "OTDR/LSPM requirements not met for Test Plan")
+    db.execute(text("update pons set status = :s where id = :id"), {"s": target, "id": pon_id})
+    db.commit()
+    return {"ok": True, "status": target}
+

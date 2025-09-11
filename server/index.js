@@ -26,22 +26,23 @@ app.use(cors({
 // Serve static files (for photo uploads)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Define Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/pons', require('./routes/pons'));
-app.use('/api/tasks', require('./routes/tasks'));
-app.use('/api/devices', require('./routes/devices'));
-app.use('/api/incidents', require('./routes/incidents'));
-app.use('/api/optics', require('./routes/optics'));
-app.use('/api/nms', require('./routes/nmsWebhook'));
-app.use('/api/cac', require('./routes/cac'));
-app.use('/api/stringing', require('./routes/stringing'));
-app.use('/api/photos', require('./routes/photos'));
-app.use('/api/smme', require('./routes/smme'));
-app.use('/api/stock', require('./routes/stock'));
-app.use('/api/invoicing', require('./routes/invoicing'));
-app.use('/api/reports', require('./routes/reports'));
+// Define Routes (legacy). Tighten or disable specific routes via env
+const legacyEnabled = (name) => (process.env[`LEGACY_${name}_ENABLED`] || 'false').toLowerCase() === 'true';
+if (legacyEnabled('AUTH')) app.use('/api/auth', require('./routes/auth'));
+if (legacyEnabled('USERS')) app.use('/api/users', require('./routes/users'));
+if (legacyEnabled('PONS')) app.use('/api/pons', require('./routes/pons'));
+if (legacyEnabled('TASKS')) app.use('/api/tasks', require('./routes/tasks'));
+if (legacyEnabled('DEVICES')) app.use('/api/devices', require('./routes/devices'));
+if (legacyEnabled('INCIDENTS')) app.use('/api/incidents', require('./routes/incidents'));
+if (legacyEnabled('OPTICS')) app.use('/api/optics', require('./routes/optics'));
+if (legacyEnabled('NMS')) app.use('/api/nms', require('./routes/nmsWebhook'));
+if (legacyEnabled('CAC')) app.use('/api/cac', require('./routes/cac'));
+if (legacyEnabled('STRINGING')) app.use('/api/stringing', require('./routes/stringing'));
+if (legacyEnabled('PHOTOS')) app.use('/api/photos', require('./routes/photos'));
+if (legacyEnabled('SMME')) app.use('/api/smme', require('./routes/smme'));
+if (legacyEnabled('STOCK')) app.use('/api/stock', require('./routes/stock'));
+if (legacyEnabled('INVOICING')) app.use('/api/invoicing', require('./routes/invoicing'));
+if (legacyEnabled('REPORTS')) app.use('/api/reports', require('./routes/reports'));
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

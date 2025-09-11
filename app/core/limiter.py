@@ -23,7 +23,11 @@ async def key_by_ip(request: Request) -> str:
 
 
 async def key_by_org(request: Request) -> str:
-    return getattr(request.state, "org_id", request.client.host if request.client else "unknown")
+    # Prefer org from JWT claims attached by middleware/deps
+    org_id = getattr(request.state, "org_id", None)
+    if org_id:
+        return f"org:{org_id}"
+    return request.client.host if request.client else "unknown"
 
 
 def env_ip_limiter(env_prefix: str = "WEBHOOK_IP", default_limit: int = 60, default_window: int = 60):
@@ -47,7 +51,9 @@ def env_org_limiter(env_prefix: str = "HEAVY_ORG", default_limit: int = 120, def
     bypass_roles = [r.strip() for r in os.getenv(f"{env_prefix}_BYPASS_ROLES", "NOC").split(",") if r.strip()]
 
     async def _dep(request: Request):
-        role = request.headers.get("X-Role")
+        # Prefer JWT role from middleware-attached claims
+        claims = getattr(request.state, "jwt_claims", None)
+        role = (claims or {}).get("role") or request.headers.get("X-Role")
         if role and role in bypass_roles:
             return
         await limiter(limit=limit, window_sec=window, key_fn=key_by_org)(request)

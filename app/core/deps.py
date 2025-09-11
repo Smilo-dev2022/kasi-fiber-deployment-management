@@ -3,7 +3,7 @@ from typing import Generator, Callable, Sequence
 
 from fastapi import Header, HTTPException, Request
 from sqlalchemy import create_engine, text
-from app.core.auth import decode_bearer_token, extract_role_from_claims
+from app.core.auth import decode_bearer_token, extract_role_from_claims, extract_org_from_claims, extract_tenant_from_claims
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 
@@ -56,6 +56,13 @@ def require_roles(*allowed_roles: Sequence[str]) -> Callable:
         # Attach claims to request.state for downstream use
         if claims:
             setattr(request.state, "jwt_claims", claims)
+            # Also attach org/tenant ids for scoping
+            org_id = extract_org_from_claims(claims)
+            if org_id:
+                setattr(request.state, "org_id", org_id)
+            tenant_id = extract_tenant_from_claims(claims)
+            if tenant_id:
+                setattr(request.state, "tenant_id", tenant_id)
         return True
 
     return checker
