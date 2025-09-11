@@ -58,3 +58,39 @@ def list_plans(pon_id: str = Query(...), db: Session = Depends(get_db)):
     )
     return [dict(r) for r in rows]
 
+
+def _pon_gated(db: Session, pon_id: str) -> bool:
+    """Return True if PON is allowed to complete/invoice based on test results."""
+    row = db.execute(
+        text(
+            """
+            with req as (
+                select coalesce(bool_or(otdr_required), true) as oreq,
+                       coalesce(bool_or(lspm_required), true) as lreq
+                from test_plans where pon_id = :p
+            ),
+            latest_otdr as (
+                select tp.id as plan_id, coalesce(bool_and(or2.passed), false) as pass_all
+                from test_plans tp
+                left join otdr_results or2 on or2.test_plan_id = tp.id
+                where tp.pon_id = :p
+                group by tp.id
+            ),
+            latest_lspm as (
+                select tp.id as plan_id, coalesce(bool_and(lr.passed), false) as pass_all
+                from test_plans tp
+                left join lspm_results lr on lr.test_plan_id = tp.id
+                where tp.pon_id = :p
+                group by tp.id
+            )
+            select (not (select oreq from req) or (select bool_and(pass_all) from latest_otdr)) as otdr_ok,
+                   (not (select lreq from req) or (select bool_and(pass_all) from latest_lspm)) as lspm_ok
+            """
+        ),
+        {"p": pon_id},
+    ).mappings().first()
+    if not row:
+        # No plans means no gating
+        return True
+    return bool(row["otdr_ok"]) and bool(row["lspm_ok"])
+

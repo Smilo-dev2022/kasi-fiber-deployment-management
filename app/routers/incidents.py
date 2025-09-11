@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
@@ -12,9 +12,15 @@ from app.models.orgs import Contract, Assignment
 router = APIRouter(prefix="/incidents", tags=["incidents"])
 
 
-@router.get("", response_model=List[IncidentOut])
-def list_incidents(db: Session = Depends(get_db), status: Optional[str] = Query(None), device_id: Optional[str] = Query(None)):
+@router.get("", response_model=List[IncidentOut], dependencies=[Depends(require_roles("ADMIN", "PM", "SITE", "NOC", "AUDITOR"))])
+def list_incidents(request: Request, db: Session = Depends(get_db), status: Optional[str] = Query(None), device_id: Optional[str] = Query(None)):
     q = db.query(Incident)
+    # Scope by tenant/org when present
+    org_id = getattr(request.state, "org_id", None)
+    if org_id:
+        from app.models.orgs import Organization
+        # Join via assigned_org_id or via PON mapping as needed; here we filter incidents assigned to org
+        q = q.filter(Incident.assigned_org_id == org_id)
     if status:
         q = q.filter(Incident.status == status)
     if device_id:

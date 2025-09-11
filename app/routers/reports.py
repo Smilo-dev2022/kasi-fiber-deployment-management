@@ -26,8 +26,8 @@ def weekly(payload: WeeklyIn, db: Session = Depends(get_db)):
     end = payload.end or date.today()
     total = db.query(func.count(PON.id)).scalar()
     completed = db.query(func.count(PON.id)).filter(PON.status == "Completed").scalar()
-    breaches = db.query(func.count(Task.id)).filter(Task.breached == True).scalar()
-    first_pass = db.query(func.count(CertificateAcceptance.id)).filter(CertificateAcceptance.passed == True).scalar()
+    breaches = db.query(func.count(Task.id)).filter(Task.breached.is_(True)).scalar()
+    first_pass = db.query(func.count(CertificateAcceptance.id)).filter(CertificateAcceptance.passed.is_(True)).scalar()
     smme_count = db.query(func.count(SMME.id)).scalar()
     url = f"https://example.local/reports/{uuid4()}.pdf"
     db.execute(

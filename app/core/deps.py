@@ -1,9 +1,14 @@
 import os
-from typing import Generator, Callable, Sequence
+from typing import Generator, Callable, Sequence, Optional
 
-from fastapi import Header, HTTPException, Request
+from fastapi import HTTPException, Request, Depends
 from sqlalchemy import create_engine, text
-from app.core.auth import decode_bearer_token, extract_role_from_claims
+from app.core.auth import (
+    decode_bearer_token,
+    extract_role_from_claims,
+    extract_org_from_claims,
+    extract_tenant_from_claims,
+)
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 
@@ -45,20 +50,45 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def require_roles(*allowed_roles: Sequence[str]) -> Callable:
-    async def checker(request: Request, x_role: str | None = Header(default=None, alias="X-Role")):
-        # Prefer Authorization bearer token if present
+    async def checker(request: Request):
         claims = decode_bearer_token(request.headers.get("Authorization"))
+        if not claims:
+            raise HTTPException(status_code=401, detail="Unauthorized")
         effective_role = extract_role_from_claims(claims) if claims else None
-        if not effective_role:
-            effective_role = x_role
         if allowed_roles and effective_role not in allowed_roles:
             raise HTTPException(status_code=403, detail="Forbidden")
         # Attach claims to request.state for downstream use
-        if claims:
-            setattr(request.state, "jwt_claims", claims)
+        setattr(request.state, "jwt_claims", claims)
+        # Also surface parsed org/tenant to request.state for convenience
+        org_id = extract_org_from_claims(claims)
+        tenant_id = extract_tenant_from_claims(claims)
+        if org_id:
+            setattr(request.state, "org_id", org_id)
+        if tenant_id:
+            setattr(request.state, "tenant_id", tenant_id)
         return True
 
     return checker
+
+
+def get_claims(request: Request) -> dict:
+    claims = getattr(request.state, "jwt_claims", None)
+    if claims is None:
+        claims = decode_bearer_token(request.headers.get("Authorization"))
+        if claims:
+            setattr(request.state, "jwt_claims", claims)
+    return claims or {}
+
+
+def require_org(request: Request = None) -> str:
+    if request is None:
+        raise HTTPException(status_code=500, detail="Request context unavailable")
+    claims = get_claims(request)
+    org_id: Optional[str] = extract_org_from_claims(claims)
+    if not org_id:
+        raise HTTPException(status_code=400, detail="Organization scope missing in token")
+    setattr(request.state, "org_id", org_id)
+    return org_id
 
 
 def get_db_session() -> Session:

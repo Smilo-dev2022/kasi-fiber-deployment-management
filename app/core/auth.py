@@ -39,3 +39,37 @@ def extract_role_from_claims(claims: Dict[str, Any]) -> Optional[str]:
     # Default to 'authenticated' when a token exists but no role claim
     return role or "authenticated"
 
+
+def extract_org_from_claims(claims: Dict[str, Any]) -> Optional[str]:
+    """Try common claim keys for organization id.
+
+    Supports:
+    - org_id / organization_id
+    - org in app_metadata
+    - custom claim namespaces
+    """
+    if not claims:
+        return None
+    for key in ("org_id", "organization_id", "org"):
+        if key in claims and claims.get(key):
+            return str(claims.get(key))
+    app_meta = claims.get("app_metadata") or {}
+    for key in ("org", "org_id", "organization_id"):
+        if key in app_meta and app_meta.get(key):
+            return str(app_meta.get(key))
+    return None
+
+
+def extract_tenant_from_claims(claims: Dict[str, Any]) -> Optional[str]:
+    """Try common claim keys for tenant id (multi-tenant support)."""
+    if not claims:
+        return None
+    for key in ("tenant_id", "tenant"):
+        if key in claims and claims.get(key):
+            return str(claims.get(key))
+    app_meta = claims.get("app_metadata") or {}
+    for key in ("tenant", "tenant_id"):
+        if key in app_meta and app_meta.get(key):
+            return str(app_meta.get(key))
+    return None
+

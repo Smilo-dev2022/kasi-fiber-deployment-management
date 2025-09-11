@@ -37,6 +37,7 @@ from app.scheduler import init_jobs
 from app.core.health import router as health_router
 from app.core.limiter import env_ip_limiter
 from app.core.deps import get_db_session
+from app.core.auth import decode_bearer_token, extract_org_from_claims
 from sqlalchemy import text
 
 
@@ -110,12 +111,15 @@ async def _log_jobs():
 
 
 @app.middleware("http")
-async def add_org_to_state(request: Request, call_next):
-    # Read org id from header to support per-org rate limiting
+async def attach_jwt_context(request: Request, call_next):
+    # Extract org from JWT for downstream rate limiting and scoping
     try:
-        org_id = request.headers.get("X-Org-Id")
-        if org_id:
-            request.state.org_id = org_id
+        claims = decode_bearer_token(request.headers.get("Authorization"))
+        if claims:
+            org_id = extract_org_from_claims(claims)
+            if org_id:
+                request.state.org_id = org_id
+            setattr(request.state, "jwt_claims", claims)
     except Exception:
         pass
     return await call_next(request)

@@ -47,7 +47,9 @@ def env_org_limiter(env_prefix: str = "HEAVY_ORG", default_limit: int = 120, def
     bypass_roles = [r.strip() for r in os.getenv(f"{env_prefix}_BYPASS_ROLES", "NOC").split(",") if r.strip()]
 
     async def _dep(request: Request):
-        role = request.headers.get("X-Role")
+        # Prefer JWT role on request.state
+        claims = getattr(request.state, "jwt_claims", {}) or {}
+        role = claims.get("role")
         if role and role in bypass_roles:
             return
         await limiter(limit=limit, window_sec=window, key_fn=key_by_org)(request)

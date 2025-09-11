@@ -7,6 +7,7 @@ from uuid import UUID
 from app.core.deps import get_db, require_roles
 from app.models.certificate_acceptance import CertificateAcceptance
 from app.models.photo import Photo
+from app.routers.tests_plans import _pon_gated
 
 
 router = APIRouter(prefix="/certificate-acceptance", tags=["certificate-acceptance"])
@@ -53,6 +54,8 @@ def create_certificate_acceptance(payload: CertificateAcceptanceIn, db: Session 
     )
     db.add(rec)
     db.commit()
+    # If failed, ensure no invoice line can be created later without tests; otherwise proceed
+    # Optionally flag PON status based on CA result
     return {"ok": True, "id": str(rec.id)}
 
 

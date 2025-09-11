@@ -8,6 +8,7 @@ from uuid import uuid4
 from app.core.deps import get_db, require_roles
 from app.services.pdf import render_pay_sheet_pdf
 from app.services.s3 import put_bytes
+from app.routers.tests_plans import _pon_gated
 
 
 router = APIRouter(prefix="/pay-sheets", tags=["pay-sheets"])
@@ -21,6 +22,7 @@ class GenIn(BaseModel):
 
 @router.post("/generate", dependencies=[Depends(require_roles("ADMIN", "PM"))])
 def generate(payload: GenIn, db: Session = Depends(get_db)):
+    # Block invoicing lines for PONs that have not passed required tests
     sql = text(
         """
     with
@@ -98,6 +100,9 @@ def generate(payload: GenIn, db: Session = Depends(get_db)):
         },
     )
     for r in rows:
+        # Ensure PON passes gates
+        if not _pon_gated(db, r["pon"]):
+            raise HTTPException(400, f"PON {r['pon']} not released by tests; cannot generate invoice line")
         db.execute(
             text(
                 """
@@ -157,4 +162,27 @@ def export_pdf(pay_sheet_id: str, db: Session = Depends(get_db)):
     db.execute(text("update pay_sheets set url=:u where id=:id"), {"u": url, "id": pay_sheet_id})
     db.commit()
     return {"ok": True, "url": url}
+
+
+class SubmitIn(BaseModel):
+    confirm: bool = True
+
+
+@router.post("/{pay_sheet_id}/submit", dependencies=[Depends(require_roles("ADMIN", "PM"))])
+def submit_pay_sheet(pay_sheet_id: str, payload: SubmitIn, db: Session = Depends(get_db)):
+    # Lock the pay sheet so it cannot be edited further
+    hdr = db.execute(
+        text("select status from pay_sheets where id = :id for update"),
+        {"id": pay_sheet_id},
+    ).first()
+    if not hdr:
+        raise HTTPException(404, "Not found")
+    status = hdr[0]
+    if status == "Submitted":
+        return {"ok": True, "status": status}
+    if status not in ("Draft", "Ready"):
+        raise HTTPException(400, f"Cannot submit from status {status}")
+    db.execute(text("update pay_sheets set status = 'Submitted' where id = :id"), {"id": pay_sheet_id})
+    db.commit()
+    return {"ok": True, "status": "Submitted"}
 
