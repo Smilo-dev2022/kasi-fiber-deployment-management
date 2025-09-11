@@ -11,7 +11,9 @@
     "build": "cd client && npm run build",
     "install-client": "cd client && npm install",
     "heroku-postbuild": "npm run install-client && npm run build",
-    "check:supabase": "node scripts/check_supabase.js"
+    "check:supabase": "node scripts/check_supabase.js",
+    "e2e:install": "npx -y playwright install --with-deps",
+    "e2e:test": "playwright test"
   },
   "keywords": [
     "fiber",
@@ -23,6 +25,7 @@
   "author": "Kasi Fiber Team",
   "license": "MIT",
   "dependencies": {
+    "http-proxy-middleware": "^3.0.0",
     "helmet": "^7.1.0",
     "@supabase/supabase-js": "^2.57.4",
     "bcryptjs": "^2.4.3",
@@ -39,6 +42,7 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.0",
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "@playwright/test": "^1.48.2"
   }
 }

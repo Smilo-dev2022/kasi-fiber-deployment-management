@@ -60,7 +60,57 @@ services:
     ports:
       - "1025:1025"
       - "8025:8025"
+  mongo:
+    image: mongo:6
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  auth:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/app
+      - JWT_SECRET=${JWT_SECRET:-change-me}
+      - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS:-http://localhost:3000}
+      - FASTAPI_URL=http://api:8000
+    ports:
+      - "5000:5000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    command: ["node", "server/index.js"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  client:
+    image: node:20-alpine
+    working_dir: /app
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WDS_SOCKET_PORT=0
+      - REACT_APP_API_BASE_URL=http://auth:5000/api
+    volumes:
+      - ../client:/app
+    command: ["sh", "-lc", "(npm ci || npm install) && npm start"]
+    ports:
+      - "3000:3000"
+    depends_on:
+      auth:
+        condition: service_healthy
+      api:
+        condition: service_started
 volumes:
   db-data:
   redis-data:
   minio-data:
+  mongo-data:
