@@ -34,6 +34,27 @@
 - OIDC issuer/client ID/client secret: from your identity provider
 - Database URL (prod): full DSN, e.g., `postgresql+psycopg2://user:pass@host:5432/dbname`
 
+## Supabase
+- SUPABASE_URL: project base URL (e.g., `https://bigbujrinohnmoxuidbx.supabase.co`)
+- SUPABASE_ANON_KEY: anon public key (client-side allowed)
+- SUPABASE_SERVICE_ROLE_KEY: service role key (server-only; never expose)
+- SUPABASE_ACCESS_TOKEN (GitHub Secret): for CLI auth in CI; do not commit
+
+### CI usage example
+Add a repository secret named `SUPABASE_ACCESS_TOKEN` (Settings → Secrets and variables → Actions). The CI will login to Supabase only if the secret is present.
+
+```yaml
+- uses: actions/setup-node@v4
+  if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
+  with:
+    node-version: '20'
+- name: Supabase login (optional)
+  if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
+  env:
+    SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  run: npx --yes supabase@latest login --token "$SUPABASE_ACCESS_TOKEN"
+```
+
 ## Helpful commands
 - Generate hex secret: `openssl rand -hex 32`
 - Validate HMAC locally: see `scripts/test_webhooks.sh`
