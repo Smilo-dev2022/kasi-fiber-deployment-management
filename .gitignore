@@ -12,3 +12,4 @@ client/build/
 client/node_modules/
 .venv/
 .env.*
+.supabase/
