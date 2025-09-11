@@ -152,6 +152,7 @@ Ensure production environment variables are set:
 - `NMS_ALLOW_IPS`: Comma-separated source IPs allowed for webhooks
 - `NMS_HMAC_SECRET`: Shared secret used to verify HMAC (`X-Signature`)
 - `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`
+- `NMS_HMAC_SECRET`: Required in production for webhook verification
 \- Rate limiting (tune per env):
   - FastAPI webhooks (per IP): `WEBHOOK_IP_LIMIT`, `WEBHOOK_IP_WINDOW` (default `60` req / `60` sec)
   - Heavy writes (per org): `HEAVY_ORG_LIMIT`, `HEAVY_ORG_WINDOW` (default `120` req / `60` sec)
@@ -188,6 +189,10 @@ export $(cat .env.staging | xargs) && python scripts/setup_minio.py
 - `MONGODB_URI` (production database)
 - `JWT_SECRET` (strong secret key)
 
+### Scheduler runner
+
+- The FastAPI service runs APScheduler in-process. In production, ensure only a single instance is designated to run scheduled jobs to avoid duplicates (e.g., run a single worker or set a leader election mechanism). Alternatively, move jobs to a dedicated worker process.
+
 ## Configuration & Environment
 
 Key environment variables (see also `docs/secrets.md`):
@@ -196,6 +201,7 @@ Key environment variables (see also `docs/secrets.md`):
   - `DATABASE_URL` (e.g., `postgresql+psycopg2://app:app@localhost:5432/app`)
   - `CORS_ALLOW_ORIGINS` (comma-separated list or `*`)
   - `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`
+  - `NMS_HMAC_SECRET` (required in production)
 
 - Legacy API (Express)
   - `MONGODB_URI`, `JWT_SECRET`, `PORT` (default 5000)

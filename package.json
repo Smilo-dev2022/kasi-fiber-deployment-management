@@ -11,7 +11,9 @@
     "build": "cd client && npm run build",
     "install-client": "cd client && npm install",
     "heroku-postbuild": "npm run install-client && npm run build",
-    "check:supabase": "node scripts/check_supabase.js"
+    "check:supabase": "node scripts/check_supabase.js",
+    "lint": "eslint \"server/**/*.js\"",
+    "format": "prettier --write \"**/*.{js,jsx,json,md,yml,yaml}\""
   },
   "keywords": [
     "fiber",

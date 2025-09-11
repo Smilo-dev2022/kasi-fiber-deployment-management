@@ -5,6 +5,20 @@ const PON = require('../models/PON');
 
 const router = express.Router();
 
+// Optional Redis client for distributed rate-limit
+let redisClient = null;
+try {
+  const { createClient } = require('redis');
+  const redisUrl = process.env.REDIS_URL;
+  if (redisUrl) {
+    redisClient = createClient({ url: redisUrl });
+    redisClient.on('error', () => {});
+    redisClient.connect().catch(() => {});
+  }
+} catch (e) {
+  // Redis not available; will fall back to in-memory limiter
+}
+
 // No auth: called by NMS in network. Secure via shared secret header and per-IP rate limit
 router.post('/hook', async (req, res) => {
   try {
@@ -13,18 +27,24 @@ router.post('/hook', async (req, res) => {
     const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').toString().split(',')[0].trim();
     const limit = Number(process.env.WEBHOOK_IP_LIMIT || 60);
     const windowSec = Number(process.env.WEBHOOK_IP_WINDOW || 60);
-    const key = `ip:${ip}`;
-    if (!global.__ipBuckets) global.__ipBuckets = new Map();
-    const arr = (global.__ipBuckets.get(key) || []).filter(ts => ts > now - windowSec * 1000);
-    if (arr.length >= limit) {
-      return res.status(429).json({ message: 'Rate limit exceeded' });
+    const key = `ratelimit:ip:${ip}:${Math.floor(now / (windowSec * 1000))}`;
+    if (redisClient) {
+      const count = await redisClient.incr(key);
+      if (count === 1) await redisClient.expire(key, windowSec);
+      if (count > limit) return res.status(429).json({ message: 'Rate limit exceeded' });
+    } else {
+      if (!global.__ipBuckets) global.__ipBuckets = new Map();
+      const arr = (global.__ipBuckets.get(key) || []).filter(ts => ts > now - windowSec * 1000);
+      if (arr.length >= limit) {
+        return res.status(429).json({ message: 'Rate limit exceeded' });
+      }
+      arr.push(now);
+      global.__ipBuckets.set(key, arr);
     }
-    arr.push(now);
-    global.__ipBuckets.set(key, arr);
 
-    const secret = process.env.NMS_WEBHOOK_SECRET || 'change-me';
+    const secret = process.env.NMS_WEBHOOK_SECRET;
     const provided = req.header('x-webhook-secret');
-    if (!provided || provided !== secret) {
+    if (!secret || !provided || provided !== secret) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 

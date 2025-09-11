@@ -9,7 +9,12 @@ const auth = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      // Fail closed if secret is not set
+      throw new Error('JWT secret not configured');
+    }
+    const decoded = jwt.verify(token, secret);
     const user = await User.findById(decoded.user.id).select('-password');
     
     if (!user || !user.isActive) {

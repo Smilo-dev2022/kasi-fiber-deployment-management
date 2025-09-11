@@ -48,9 +48,13 @@ router.post('/register', [
       }
     };
 
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      return res.status(500).json({ message: 'JWT secret not configured' });
+    }
     jwt.sign(
       payload,
-      process.env.JWT_SECRET || 'fallback_secret',
+      secret,
       { expiresIn: '24h' },
       (err, token) => {
         if (err) throw err;
@@ -115,9 +119,13 @@ router.post('/login', [
       }
     };
 
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      return res.status(500).json({ message: 'JWT secret not configured' });
+    }
     jwt.sign(
       payload,
-      process.env.JWT_SECRET || 'fallback_secret',
+      secret,
       { expiresIn: '24h' },
       (err, token) => {
         if (err) throw err;

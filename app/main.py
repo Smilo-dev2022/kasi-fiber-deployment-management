@@ -1,6 +1,6 @@
 import os
 import logging
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import tasks as tasks_router
@@ -42,11 +42,17 @@ from sqlalchemy import text
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 
+ENV = os.getenv("ENV", "development").lower()
+
 app = FastAPI()
 
 # CORS allowlist
 origins_env = os.getenv("CORS_ALLOW_ORIGINS", "*")
 allow_origins = [o.strip() for o in origins_env.split(",") if o.strip()]
+
+# Disallow wildcard CORS in production
+if ENV == "production" and ("*" in allow_origins or allow_origins == ["*"]):
+    raise RuntimeError("CORS_ALLOW_ORIGINS cannot be '*' in production")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins if allow_origins != ["*"] else ["*"],
@@ -54,6 +60,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    # Basic security headers (keep minimal to avoid breaking app)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    # Only set HSTS in production (assumes TLS termination in front)
+    if ENV == "production":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
+    return response
 
 app.include_router(tasks_router.router)
 app.include_router(certacc_router.router)
@@ -90,6 +109,26 @@ app.include_router(map_router.router)
 app.include_router(imports_router.router)
 app.include_router(users_loc_router.router)
 app.include_router(photos_geo_router.router)
+
+def _validate_required_env_for_production():
+    if ENV != "production":
+        return
+    required = [
+        "DATABASE_URL",
+        "S3_ENDPOINT",
+        "S3_REGION",
+        "S3_BUCKET",
+        "S3_ACCESS_KEY",
+        "S3_SECRET_KEY",
+        # Webhook security
+        "NMS_HMAC_SECRET",
+    ]
+    missing = [k for k in required if not os.getenv(k)]
+    if missing:
+        raise RuntimeError(f"Missing required environment variables in production: {', '.join(missing)}")
+
+
+_validate_required_env_for_production()
 
 init_jobs()
 

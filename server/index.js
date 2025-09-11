@@ -8,6 +8,18 @@ const { startSlaMonitor } = require('./jobs/slaMonitor');
 
 const app = express();
 
+// Basic production env validation
+const ENV = (process.env.NODE_ENV || 'development').toLowerCase();
+if (ENV === 'production') {
+  const required = ['MONGODB_URI', 'JWT_SECRET'];
+  const missing = required.filter((k) => !process.env[k]);
+  if (missing.length) {
+    // eslint-disable-next-line no-console
+    console.error(`Missing required env in production: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+}
+
 // Connect Database
 connectDB();
 
