@@ -9,7 +9,10 @@ const auth = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ message: 'Server misconfigured: JWT_SECRET is not set' });
+    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.user.id).select('-password');
     
     if (!user || !user.isActive) {

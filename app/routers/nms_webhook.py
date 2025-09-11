@@ -25,9 +25,12 @@ def _verify_source(request: Request):
 
 
 def _verify_hmac(request: Request, body: bytes):
+    allow_unsigned = str(os.getenv("ALLOW_UNSIGNED_WEBHOOKS", "")).lower() == "true"
     secret = os.getenv("NMS_HMAC_SECRET")
-    if not secret:
+    if allow_unsigned:
         return
+    if not secret:
+        raise HTTPException(500, "Server misconfigured: NMS_HMAC_SECRET is not set")
     sig = request.headers.get("X-Signature") or request.headers.get("X-Hub-Signature")
     if not sig:
         raise HTTPException(401, "Missing signature")

@@ -3,6 +3,16 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
+// Fail fast on critical env in production-like environments
+if (process.env.NODE_ENV === 'production' || process.env.CI === 'true') {
+  ['JWT_SECRET'].forEach((key) => {
+    if (!process.env[key]) {
+      console.error(`Missing required environment variable: ${key}`);
+      process.exit(1);
+    }
+  });
+}
+
 const connectDB = require('./config/database');
 const { startSlaMonitor } = require('./jobs/slaMonitor');
 

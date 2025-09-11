@@ -22,10 +22,16 @@ router.post('/hook', async (req, res) => {
     arr.push(now);
     global.__ipBuckets.set(key, arr);
 
-    const secret = process.env.NMS_WEBHOOK_SECRET || 'change-me';
-    const provided = req.header('x-webhook-secret');
-    if (!provided || provided !== secret) {
-      return res.status(401).json({ message: 'Unauthorized' });
+    const allowUnsigned = String(process.env.ALLOW_UNSIGNED_WEBHOOKS || '').toLowerCase() === 'true';
+    const secret = process.env.NMS_WEBHOOK_SECRET;
+    if (!allowUnsigned) {
+      if (!secret) {
+        return res.status(500).json({ message: 'Server misconfigured: NMS_WEBHOOK_SECRET is not set' });
+      }
+      const provided = req.header('x-webhook-secret');
+      if (!provided || provided !== secret) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
     }
 
     const body = req.body || {};
