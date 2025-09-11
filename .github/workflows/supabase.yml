@@ -1,0 +1,45 @@
+name: Supabase Migrations
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Supabase CLI
+        run: |
+          curl -fsSL https://cli.supabase.com/install.sh | sh
+          echo "${HOME}/.supabase/bin" >> $GITHUB_PATH
+
+      - name: Supabase Login
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase login --token "$SUPABASE_ACCESS_TOKEN"
+
+      - name: Link project
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Push database migrations
+        run: |
+          supabase db push
+
+      - name: Deploy Edge Functions (if present)
+        run: |
+          if [ -d "supabase/functions" ]; then
+            supabase functions deploy --all || true
+          fi
+
