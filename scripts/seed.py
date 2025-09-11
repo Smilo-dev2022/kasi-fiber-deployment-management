@@ -13,29 +13,26 @@ def seed_core(conn):
     # Tenants and orgs
     tenant = str(uuid4())
     civil = str(uuid4())
-    tech = str(uuid4())
     maint = str(uuid4())
-    conn.execute(text("insert into organizations (id, tenant_id, name, type) values (:id,:t,'Civils Co','Civil')"), {"id": civil, "t": tenant})
-    conn.execute(text("insert into organizations (id, tenant_id, name, type) values (:id,:t,'Tech Co','Technical')"), {"id": tech, "t": tenant})
-    conn.execute(text("insert into organizations (id, tenant_id, name, type) values (:id,:t,'Maint Co','Maintenance')"), {"id": maint, "t": tenant})
+    conn.execute(text("insert into organizations (id, tenant_id, name, type) values (:id,:t,'Civil Org','Civil')"), {"id": civil, "t": tenant})
+    conn.execute(text("insert into organizations (id, tenant_id, name, type) values (:id,:t,'Maintenance Org','Maintenance')"), {"id": maint, "t": tenant})
 
     # SMME
     smme = str(uuid4())
-    conn.execute(text("insert into smmes (id) values (:id)"), {"id": smme})
+    conn.execute(text("insert into smmes (id, tenant_id, name) values (:id, :t, 'Pilot SMME')"), {"id": smme, "t": tenant})
 
     # PONs
     pons = [str(uuid4()) for _ in range(5)]
     for i, pid in enumerate(pons, start=1):
         conn.execute(text("insert into pons (id, status, center_lat, center_lng, geofence_radius_m) values (:id,'planned', -26.2, 28.04, 250)"), {"id": pid})
 
-    # Contracts
-    conn.execute(text("insert into contracts (id, org_id, scope_type, sla_p1_min, sla_p2_min, sla_p3_min, sla_p4_min, active) values (gen_random_uuid(), :o, 'Technical', 120, 240, 480, 1440, true)"), {"o": tech})
+    # Contracts (SLAs)
     conn.execute(text("insert into contracts (id, org_id, scope_type, sla_p1_min, sla_p2_min, sla_p3_min, sla_p4_min, active) values (gen_random_uuid(), :o, 'Maintenance', 120, 240, 480, 1440, true)"), {"o": maint})
     conn.execute(text("insert into contracts (id, org_id, scope_type, sla_p1_min, sla_p2_min, sla_p3_min, sla_p4_min, active) values (gen_random_uuid(), :o, 'Civil', 0, 0, 0, 0, true)"), {"o": civil})
 
     # Assignments by step and PON
     for pid in pons:
-        conn.execute(text("insert into assignments (id, org_id, pon_id, step_type) values (gen_random_uuid(), :o, :p, 'Technical')"), {"o": tech, "p": pid})
+        conn.execute(text("insert into assignments (id, org_id, pon_id, step_type) values (gen_random_uuid(), :o, :p, 'Civil')"), {"o": civil, "p": pid})
         conn.execute(text("insert into assignments (id, org_id, pon_id, step_type) values (gen_random_uuid(), :o, :p, 'Maintenance')"), {"o": maint, "p": pid})
 
     # Devices: one OLT and three ONUs per PON
@@ -57,7 +54,7 @@ def seed_core(conn):
     conn.execute(text("insert into rate_cards (id, smme_id, step, unit, rate_cents, active, valid_from) values (gen_random_uuid(), :s, 'CAC', 'per_check', 25000, true, current_date)"), {"s": smme})
 
     # Five PONs seeded
-    return {"tenant": tenant, "orgs": {"civil": civil, "tech": tech, "maint": maint}, "smme": smme, "pons": pons}
+    return {"tenant": tenant, "orgs": {"civil": civil, "maint": maint}, "smme": smme, "pons": pons}
 
 
 def main():

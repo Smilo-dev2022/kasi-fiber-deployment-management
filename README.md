@@ -239,6 +239,24 @@ docker compose -f infra/docker-compose.yml up -d api
 
 MIT License — see `LICENSE` for details
 
+## Capabilities
+
+- Health and readiness endpoints: `/healthz`, `/readyz` validate DB, Redis, S3
+- Org scoping and role checks enforced on all routes (`X-Role`, JWT)
+- Evidence gates: EXIF timestamp and geofence validation for photos
+- Geofencing: center+radius and polygon geofences per PON
+- Tasks and work queue with SLA due calculations and org assignments
+- Certificate of Acceptance (CAC) checks and gating
+- Optical tests: Test Plans, OTDR results, LSPM results with pass/fail
+- Incidents ingestion via webhooks (LibreNMS, Zabbix) with HMAC + IP allowlist
+- Work queue routing and SLA due times via contracts
+- Maps: wards and PON asset GeoJSON endpoints
+- Stock batches and moves with PON associations
+- Pay sheets: generate and export PDF to S3
+- Invoices: PDF generation and lock (to be added)
+- `/readyz` returns 200 only when DB, Redis, S3 are healthy
+- Seed data for pilot tenant (tenant, Civil and Maintenance orgs, 5 PONs, rate card, users placeholders, contract with SLAs)
+
 ### Supabase setup
 
 1) Install the CLI (local):

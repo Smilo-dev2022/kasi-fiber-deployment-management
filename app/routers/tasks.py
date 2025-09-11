@@ -5,6 +5,8 @@ from pydantic import BaseModel
 from typing import Optional, List
 from app.core.deps import get_db, require_roles
 from app.models.task import Task
+from app.models.photo import Photo
+from uuid import UUID
 from app.models.orgs import Assignment
 
 
@@ -28,8 +30,6 @@ DEFAULT_SLA = {
 
 @router.patch("/{task_id}", dependencies=[Depends(require_roles("ADMIN", "PM", "SITE"))])
 def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(get_db)):
-    from uuid import UUID
-
     task = db.get(Task, UUID(task_id))
     if not task:
         raise HTTPException(404, "Not found")
@@ -41,6 +41,18 @@ def update_task(task_id: str, payload: TaskUpdateIn, db: Session = Depends(get_d
         task.sla_minutes = mins
         if task.started_at:
             task.sla_due_at = task.started_at + timedelta(minutes=mins)
+    # Hard gate: require at least one validated photo within geofence for the task's PON before marking Done
+    if "status" in data and data["status"] == "Done":
+        has_valid_photo = (
+            db.query(Photo)
+            .filter(Photo.pon_id == task.pon_id)
+            .filter(Photo.exif_ok.is_(True))
+            .filter(Photo.within_geofence.is_(True))
+            .first()
+            is not None
+        )
+        if not has_valid_photo:
+            raise HTTPException(400, "Photo with valid EXIF and within geofence required")
     if "status" in data and data["status"] == "Done" and task.sla_due_at and task.completed_at:
         task.breached = task.completed_at > task.sla_due_at
     db.commit()
