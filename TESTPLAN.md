@@ -145,3 +145,27 @@ PON assets:
 curl -s $API/map/pon/PON_ID/assets -H "$AUTH" | jq '.features | length'
 ```
 
+## Local Authentication for Testing
+
+When running locally with Docker Compose:
+
+1. Start services:
+
+```bash
+make up
+```
+
+2. Seed a test user for the Node auth service:
+
+```bash
+make seed-user
+```
+
+3. Use the following endpoints via the client (proxying to `/api/*`) or directly to `http://localhost:5000/api`:
+
+- POST `/auth/register`
+- POST `/auth/login`
+- GET `/auth/user`
+
+4. The Node auth container proxies map and health routes to the FastAPI container to keep the client working end-to-end.
+

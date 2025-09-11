@@ -6,6 +6,7 @@ require('dotenv').config();
 
 const connectDB = require('./config/database');
 const { startSlaMonitor } = require('./jobs/slaMonitor');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 
@@ -22,6 +23,20 @@ app.use(cors({
   origin: allowOrigins.length ? allowOrigins : '*',
   credentials: true,
 }));
+
+// Simple health endpoint for container checks
+app.get('/health', (req, res) => res.json({ ok: true }));
+
+// Proxy specific routes to FastAPI service (map tiles, health, openapi)
+const fastApiTarget = process.env.FASTAPI_URL || 'http://localhost:8000';
+app.use(
+  ['/api/map', '/api/healthz', '/api/readyz', '/api/openapi.json'],
+  createProxyMiddleware({
+    target: fastApiTarget,
+    changeOrigin: true,
+    pathRewrite: { '^/api': '' },
+  })
+);
 
 // Serve static files (for photo uploads)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
