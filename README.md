@@ -238,3 +238,69 @@ docker compose -f infra/docker-compose.yml up -d api
 ## License
 
 MIT License — see `LICENSE` for details
+
+### Supabase setup
+
+1) Install the CLI (local):
+
+```bash
+npx --yes supabase --version
+```
+
+2) Create a Personal Access Token (PAT): Supabase Studio → Account settings → Access Tokens → New token.
+
+3) Login and link your local repo:
+
+```bash
+npx --yes supabase login
+npx --yes supabase link --project-ref YOUR_PROJECT_REF
+```
+
+4) Ensure repo structure:
+
+- `supabase/config.toml` with `project_id = "YOUR_PROJECT_REF"`
+- `supabase/migrations/*.sql`
+- `supabase/seed.sql` (optional)
+- `supabase/functions/*` (if using Edge Functions)
+
+If your SQL is elsewhere, move it into `supabase/migrations` and name like `YYYYMMDDHHMMSS_description.sql`.
+
+5) Local dry run:
+
+```bash
+npx --yes supabase db start
+npx --yes supabase db reset
+```
+
+6) Push to cloud:
+
+```bash
+npx --yes supabase db push
+```
+
+7) Deploy Edge Functions (if any):
+
+```bash
+npx --yes supabase functions deploy
+# Set function secrets if needed
+npx --yes supabase secrets set KEY=VALUE
+```
+
+8) CI on push to `main`:
+
+- Add GitHub repo secrets: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`.
+- Workflow at `.github/workflows/supabase.yml` runs link and `db push` on each push to main.
+
+9) Verify in Studio:
+
+- Database → Migrations shows files as Applied
+- Functions shows deployed functions
+- Tables exist in Table Editor
+
+Common blockers:
+
+- Wrong project ref: re-run link with the correct ref from Studio → Settings → General
+- Migrations in wrong folder: must be under `supabase/migrations`
+- Non-SQL migrations: convert ORM migrations to plain SQL before pushing
+- RLS blocking writes: add policies after creating tables
+- Using anon key for admin tasks: use SERVICE_ROLE in backend or CLI only
