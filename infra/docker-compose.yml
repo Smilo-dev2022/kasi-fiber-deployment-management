@@ -29,6 +29,8 @@ services:
       S3_BUCKET: fiber-photos
       S3_ACCESS_KEY: minio
       S3_SECRET_KEY: minio12345
+      SUPABASE_URL: https://bigbujrinohnmoxuidbx.supabase.co
+      SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpZ2J1anJpbm9obm1veHVpZGJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1NzkxNTAsImV4cCI6MjA3MzE1NTE1MH0.LnszUQtZO9jCJfr5rSfPqGqYHWok6NjrOSWGh7NbdWw
     ports:
       - "8000:8000"
     depends_on:

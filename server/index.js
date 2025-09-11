@@ -34,6 +34,7 @@ app.use('/api/smme', require('./routes/smme'));
 app.use('/api/stock', require('./routes/stock'));
 app.use('/api/invoicing', require('./routes/invoicing'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/supabase', require('./routes/supabase'));
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
