@@ -36,7 +36,7 @@ jobs:
       S3_BUCKET: fiber-photos
       S3_ACCESS_KEY: minio
       S3_SECRET_KEY: minio123
-      CORS_ALLOWED_ORIGINS: http://localhost:5173
+      CORS_ALLOW_ORIGINS: http://localhost:5173
       PYTHONDONTWRITEBYTECODE: 1
       PYTHONUNBUFFERED: 1
     steps:

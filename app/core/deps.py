@@ -1,8 +1,9 @@
 import os
 from typing import Generator, Callable, Sequence
 
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Request
 from sqlalchemy import create_engine, text
+from app.core.auth import decode_bearer_token, extract_role_from_claims
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 
@@ -44,9 +45,17 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def require_roles(*allowed_roles: Sequence[str]) -> Callable:
-    async def checker(x_role: str | None = Header(default=None, alias="X-Role")):
-        if allowed_roles and x_role not in allowed_roles:
+    async def checker(request: Request, x_role: str | None = Header(default=None, alias="X-Role")):
+        # Prefer Authorization bearer token if present
+        claims = decode_bearer_token(request.headers.get("Authorization"))
+        effective_role = extract_role_from_claims(claims) if claims else None
+        if not effective_role:
+            effective_role = x_role
+        if allowed_roles and effective_role not in allowed_roles:
             raise HTTPException(status_code=403, detail="Forbidden")
+        # Attach claims to request.state for downstream use
+        if claims:
+            setattr(request.state, "jwt_claims", claims)
         return True
 
     return checker

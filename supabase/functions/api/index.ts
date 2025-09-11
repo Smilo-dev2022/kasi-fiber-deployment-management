@@ -19,11 +19,10 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   const url = new URL(req.url);
-  // When invoked as /functions/v1/api/health, pathname will be "/health"
   const pathname = url.pathname;
 
-  // Basic sample route to verify deployment
-  if (req.method === "GET" && pathname === "/health") {
+  // Health route should work for both /health and /api/health
+  if (req.method === "GET" && (pathname === "/health" || pathname === "/api/health")) {
     return jsonResponse({ status: "ok", time: new Date().toISOString() });
   }
 

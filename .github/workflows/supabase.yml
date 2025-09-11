@@ -2,44 +2,44 @@ name: Supabase Migrations
 
 on:
   push:
-    branches: [ main ]
+    branches: ["main"]
 
 jobs:
-  migrate:
+  db-push:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
-      - name: Install Supabase CLI
-        run: |
-          curl -fsSL https://cli.supabase.com/install.sh | sh
-          echo "${HOME}/.supabase/bin" >> $GITHUB_PATH
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Show Supabase version
+        run: supabase --version
 
       - name: Supabase Login
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          supabase login --token "$SUPABASE_ACCESS_TOKEN"
+        run: supabase login --token "${SUPABASE_ACCESS_TOKEN}"
 
-      - name: Link project
+      - name: Supabase Link
         env:
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-        run: |
-          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
 
-      - name: Push database migrations
-        run: |
-          supabase db push
+      - name: Supabase DB Push
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase db push
 
-      - name: Deploy Edge Functions (if present)
-        run: |
-          if [ -d "supabase/functions" ]; then
-            supabase functions deploy --all || true
-          fi
-
+      - name: Deploy Edge Functions (optional)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy || true
