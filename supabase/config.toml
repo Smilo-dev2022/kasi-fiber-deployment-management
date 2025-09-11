@@ -1,1 +1,4 @@
 project_id = "bigbujrinohnmoxuidbx"
+
+[functions.api]
+verify_jwt = true
