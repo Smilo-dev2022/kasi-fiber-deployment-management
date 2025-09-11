@@ -92,6 +92,40 @@ A comprehensive web application for training and tracking Project Managers and S
 └── requirements.txt          # Core API Python deps
 ```
 
+## Current Functionalities
+
+- **Core API (FastAPI, `app/`)**
+  - **Health**: `GET /healthz`, `GET /readyz` (DB, Redis, S3), `GET /readyz-async`
+  - **Operations**: `tasks`, `assignments`, `work_queue`, `reports`
+  - **Certification**: `certificate_acceptance` (renamed from CAC)
+  - **Network**: `pons_geofence`, `topology`, `closures`, `trays`, `splices`, `devices`, `configs`
+  - **Testing**: `optical`, `tests_plans`, `tests_otdr`, `tests_lspm`
+  - **Incidents & maintenance**: `incidents`, `maintenance`
+  - **Finance**: `rate_cards`, `pay_sheets`, `contracts`, `spares`
+  - **Photos & geo**: `photos_upload_hook`, `photos_validate`, `photos_register_geofence`, `map`
+  - **Imports & users**: `imports`, `users_location`
+  - **Webhooks**: `nms_webhook` with IP allowlist + rate limiting
+  - **Background jobs**: SLA scan, photo revalidation, weekly report (APScheduler)
+  - **Integrations**: Postgres (SQLAlchemy/Alembic), Redis, S3-compatible storage, CORS, JWT role extraction
+
+- **Legacy API (Node/Express, `server/`)**
+  - **Routes**: `auth`, `users`, `pons`, `tasks`, `devices`, `incidents`, `optics`, `nmsWebhook`, `cac`, `stringing`, `photos`, `smme`, `stock`, `invoicing`, `reports`
+  - **Background**: SLA email monitor (configurable interval)
+  - **Static**: Serves uploads and React build in production
+
+- **Frontend (`client/`)**
+  - **React (CRA + MUI)** app with routing, data grid, and maps (MapLibre/PMTiles); dev proxy to `:5000`
+
+- **Data & Geospatial**
+  - **SA geographies loader**: Scripts/SQL import Wards/SubPlaces, normalize, index, and support geofencing (PostGIS-backed)
+
+- **Infrastructure (`infra/docker-compose.yml`)**
+  - **Services**: Postgres (PostGIS), Redis, MinIO (S3), Mailhog, FastAPI app (`:8000`)
+  - **Config**: Env-driven CORS, DB/Redis/S3 settings
+
+- **Supabase (optional)**
+  - Project linking, migrations folder, and example Edge Functions scaffolding
+
 ## Quickstart (Local Development)
 
 ### 1) Start infrastructure (Postgres, Redis, MinIO, Mailhog)
