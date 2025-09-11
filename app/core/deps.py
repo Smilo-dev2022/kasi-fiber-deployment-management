@@ -1,7 +1,8 @@
 import os
-from typing import Generator, Callable, Sequence
+from typing import Generator, Callable, Sequence, Optional, Dict, Any
 
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Depends
+import jwt
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
@@ -44,8 +45,9 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def require_roles(*allowed_roles: Sequence[str]) -> Callable:
-    async def checker(x_role: str | None = Header(default=None, alias="X-Role")):
-        if allowed_roles and x_role not in allowed_roles:
+    async def checker(user: Dict[str, Any] = Depends(lambda: get_current_user(required=True))):
+        role = user.get("role") if user else None
+        if allowed_roles and role not in allowed_roles:
             raise HTTPException(status_code=403, detail="Forbidden")
         return True
 
@@ -54,4 +56,63 @@ def require_roles(*allowed_roles: Sequence[str]) -> Callable:
 
 def get_db_session() -> Session:
     return SessionLocal()
+
+
+def get_current_user(required: bool = False) -> Optional[Dict[str, Any]]:
+    """Parse and verify JWT from Authorization header and return user claims.
+
+    Expects 'Authorization: Bearer <token>' or 'X-Auth-Token'.
+    In non-required mode returns None if missing/invalid. In required mode raises 401.
+    """
+    import os
+    from fastapi import Request
+    from fastapi import status
+    from fastapi import Request
+    from starlette.requests import Request as StarletteRequest
+    try:
+        # Retrieve current request via dependency injection hack
+        from fastapi import Request as FastAPIRequest  # type: ignore
+    except Exception:
+        FastAPIRequest = None  # type: ignore
+
+    # Use global request from contextvar if set by middleware
+    try:
+        from contextvars import ContextVar
+        _req_var: ContextVar = globals().get("_request_ctx")  # type: ignore
+        request: Optional[StarletteRequest] = _req_var.get() if _req_var else None  # type: ignore
+    except Exception:
+        request = None
+
+    if not request:
+        # Fallback: cannot read headers; allow through if not required
+        if required:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        return None
+
+    auth = request.headers.get("Authorization") or ""
+    token = None
+    if auth.lower().startswith("bearer "):
+        token = auth.split(" ", 1)[1].strip()
+    token = token or request.headers.get("X-Auth-Token")
+
+    if not token:
+        if required:
+            raise HTTPException(status_code=401, detail="Missing token")
+        return None
+
+    secret = os.getenv("JWT_SECRET")
+    if not secret:
+        # Don't leak misconfiguration details to clients
+        raise HTTPException(status_code=500, detail="Server configuration error")
+
+    try:
+        claims = jwt.decode(token, secret, algorithms=["HS256"])  # adjust alg as needed
+        # Normalize fields
+        role = claims.get("role") or claims.get("roles", [None])[0]
+        org_id = claims.get("org_id") or claims.get("org")
+        return {"sub": claims.get("sub"), "role": role, "org_id": org_id, "claims": claims}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 

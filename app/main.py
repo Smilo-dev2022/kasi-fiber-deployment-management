@@ -37,6 +37,10 @@ from app.scheduler import init_jobs
 from app.core.health import router as health_router
 from app.core.limiter import env_ip_limiter
 from app.core.deps import get_db_session
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+from contextvars import ContextVar
+import jwt
 from sqlalchemy import text
 
 
@@ -54,6 +58,28 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Context to access request in dependencies (for JWT parsing)
+_request_ctx: ContextVar = ContextVar("request_ctx", default=None)  # type: ignore
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Set request in contextvar for downstream deps
+        _request_ctx.set(request)
+        response: Response = await call_next(request)
+        # Security headers
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        # HSTS only if behind HTTPS (opt-in via env)
+        if os.getenv("ENABLE_HSTS", "false").lower() == "true":
+            response.headers.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(tasks_router.router)
 app.include_router(certacc_router.router)
@@ -108,12 +134,27 @@ async def _log_jobs():
         except Exception:
             time.sleep(2)
 
+    # Minimal config validation in prod
+    if os.getenv("NODE_ENV") == "production":
+        critical = [
+            ("DATABASE_URL", None),
+            ("S3_ENDPOINT", None),
+            ("S3_BUCKET", None),
+        ]
+        missing = [k for k, _ in critical if not os.getenv(k)]
+        if missing:
+            logging.getLogger(__name__).error(f"Missing required env vars: {', '.join(missing)}")
+            # Don't exit in hot environments; rely on orchestrator healthchecks
+
 
 @app.middleware("http")
 async def add_org_to_state(request: Request, call_next):
-    # Read org id from header to support per-org rate limiting
+    # Prefer org from JWT claims if present; fallback to header
     try:
-        org_id = request.headers.get("X-Org-Id")
+        org_id = getattr(request.state, "org_id", None)
+        # If dependency hasn't set, read from header for backward compatibility
+        if not org_id:
+            org_id = request.headers.get("X-Org-Id")
         if org_id:
             request.state.org_id = org_id
     except Exception:
