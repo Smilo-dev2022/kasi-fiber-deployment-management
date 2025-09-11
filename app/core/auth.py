@@ -5,11 +5,39 @@ import jwt
 from fastapi import HTTPException
 
 
-def get_jwt_secret() -> str:
+def _is_truthy(value: Optional[str]) -> bool:
+    if not value:
+        return False
+    normalized = value.strip().lower()
+    return normalized in {"1", "true", "yes", "y"}
+
+
+def _looks_like_base64(value: str) -> bool:
+    if not value:
+        return False
+    # Heuristic similar to Node side
+    import re
+    if len(value) % 4 != 0:
+        return False
+    return re.fullmatch(r"[A-Za-z0-9+/]+={0,2}", value) is not None
+
+
+def get_jwt_secret() -> bytes:
     secret = os.getenv("JWT_SECRET")
     if not secret:
         raise HTTPException(status_code=500, detail="Server not configured: JWT_SECRET is missing")
-    return secret
+
+    encoding = (os.getenv("JWT_SECRET_ENCODING") or "").strip().lower()
+    is_base64_flag = _is_truthy(os.getenv("JWT_SECRET_BASE64"))
+    should_decode_base64 = is_base64_flag or encoding == "base64" or _looks_like_base64(secret)
+
+    if should_decode_base64:
+        try:
+            import base64
+            return base64.b64decode(secret)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail="Invalid base64 JWT secret provided") from exc
+    return secret.encode("utf-8")
 
 
 def decode_bearer_token(authorization_header: Optional[str]) -> Optional[Dict[str, Any]]:

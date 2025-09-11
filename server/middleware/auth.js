@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { getJwtSecret } = require('../utils/jwtSecret');
 
 const auth = async (req, res, next) => {
   const token = req.header('x-auth-token') || req.header('Authorization')?.replace('Bearer ', '');
@@ -9,7 +10,7 @@ const auth = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    const decoded = jwt.verify(token, getJwtSecret());
     const user = await User.findById(decoded.user.id).select('-password');
     
     if (!user || !user.isActive) {

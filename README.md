@@ -186,7 +186,7 @@ export $(cat .env.staging | xargs) && python scripts/setup_minio.py
 
 - `NODE_ENV=production`
 - `MONGODB_URI` (production database)
-- `JWT_SECRET` (strong secret key)
+- `JWT_SECRET` (strong secret key). Supports raw UTF-8 or base64-encoded values. To force base64 decoding, set `JWT_SECRET_BASE64=true` or `JWT_SECRET_ENCODING=base64`.
 
 ## Configuration & Environment
 
@@ -196,9 +196,11 @@ Key environment variables (see also `docs/secrets.md`):
   - `DATABASE_URL` (e.g., `postgresql+psycopg2://app:app@localhost:5432/app`)
   - `CORS_ALLOW_ORIGINS` (comma-separated list or `*`)
   - `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`
+  - `JWT_SECRET` (supports base64 via `JWT_SECRET_BASE64=true` or `JWT_SECRET_ENCODING=base64`)
 
 - Legacy API (Express)
   - `MONGODB_URI`, `JWT_SECRET`, `PORT` (default 5000)
+  - Optional: `JWT_SECRET_BASE64=true` or `JWT_SECRET_ENCODING=base64` when the secret is base64
   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`
   - `DISABLE_SLA_MONITOR`, `SLA_MONITOR_INTERVAL_MS`
 
