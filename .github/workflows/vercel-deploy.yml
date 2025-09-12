@@ -1,0 +1,39 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'client/**'
+      - 'vercel.json'
+      - '.vercelignore'
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_PROJECT_ID: prj_3wgT2xdh141BrAkZ6fgtP1gZVZ0Z
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel@latest
+
+      - name: Pull Vercel Environment Info (Production)
+        run: vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+
+      - name: Build (uses vercel.json to build client)
+        run: vercel build --prod --token "$VERCEL_TOKEN"
+
+      - name: Deploy to Production
+        run: vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"
