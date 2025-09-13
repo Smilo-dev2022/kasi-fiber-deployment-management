@@ -48,23 +48,31 @@ router.post('/register', [
       }
     };
 
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET || 'fallback_secret',
-      { expiresIn: '24h' },
-      (err, token) => {
-        if (err) throw err;
-        res.json({ 
-          token,
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role
-          }
-        });
+    {
+      const primarySecret = process.env.JWT_SECRET;
+      if (!primarySecret && process.env.NODE_ENV === 'production') {
+        return res.status(500).json({ message: 'Server not configured: JWT_SECRET' });
       }
-    );
+      const signingSecret = primarySecret || 'fallback_secret';
+
+      jwt.sign(
+        payload,
+        signingSecret,
+        { algorithm: 'HS256', expiresIn: '24h' },
+        (err, token) => {
+          if (err) throw err;
+          res.json({ 
+            token,
+            user: {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              role: user.role
+            }
+          });
+        }
+      );
+    }
   } catch (error) {
     console.error(error.message);
     res.status(500).send('Server error');
@@ -115,24 +123,32 @@ router.post('/login', [
       }
     };
 
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET || 'fallback_secret',
-      { expiresIn: '24h' },
-      (err, token) => {
-        if (err) throw err;
-        res.json({ 
-          token,
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            lastLogin: user.lastLogin
-          }
-        });
+    {
+      const primarySecret = process.env.JWT_SECRET;
+      if (!primarySecret && process.env.NODE_ENV === 'production') {
+        return res.status(500).json({ message: 'Server not configured: JWT_SECRET' });
       }
-    );
+      const signingSecret = primarySecret || 'fallback_secret';
+
+      jwt.sign(
+        payload,
+        signingSecret,
+        { algorithm: 'HS256', expiresIn: '24h' },
+        (err, token) => {
+          if (err) throw err;
+          res.json({ 
+            token,
+            user: {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              role: user.role,
+              lastLogin: user.lastLogin
+            }
+          });
+        }
+      );
+    }
   } catch (error) {
     console.error(error.message);
     res.status(500).send('Server error');

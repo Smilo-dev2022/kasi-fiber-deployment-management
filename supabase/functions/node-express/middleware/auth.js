@@ -9,7 +9,25 @@ const auth = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    const primarySecret = process.env.JWT_SECRET || 'fallback_secret';
+    const legacySecretRaw = process.env.JWT_SECRET_LEGACY;
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, primarySecret);
+    } catch (primaryError) {
+      if (!legacySecretRaw) throw primaryError;
+      try {
+        decoded = jwt.verify(token, legacySecretRaw);
+      } catch (legacyError) {
+        try {
+          const maybeB64 = Buffer.from(legacySecretRaw, 'base64').toString('utf8');
+          decoded = jwt.verify(token, maybeB64);
+        } catch (legacyB64Error) {
+          throw primaryError;
+        }
+      }
+    }
     const user = await User.findById(decoded.user.id).select('-password');
     
     if (!user || !user.isActive) {
