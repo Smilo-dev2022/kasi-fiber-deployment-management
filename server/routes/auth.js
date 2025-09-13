@@ -1,5 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const { getJwtSecret } = require('../utils/jwtSecret');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
@@ -50,7 +51,7 @@ router.post('/register', [
 
     jwt.sign(
       payload,
-      process.env.JWT_SECRET || 'fallback_secret',
+      getJwtSecret(),
       { expiresIn: '24h' },
       (err, token) => {
         if (err) throw err;
@@ -117,7 +118,7 @@ router.post('/login', [
 
     jwt.sign(
       payload,
-      process.env.JWT_SECRET || 'fallback_secret',
+      getJwtSecret(),
       { expiresIn: '24h' },
       (err, token) => {
         if (err) throw err;
